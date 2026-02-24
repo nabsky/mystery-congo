@@ -8,12 +8,15 @@ import androidx.compose.ui.unit.sp
 import com.zorindisplays.display.R
 
 // Colors
-val DefaultBackground = Color.White
+val DefaultBackground = Color.Black
 val PrimaryTextColor = Color.White
 
 // Fonts
 val MontserratBold = FontFamily(
     Font(R.font.montserrat_bold)
+)
+val MontserratBlackItalic = FontFamily(
+    Font(R.font.montserrat_black_italic)
 )
 
 // Text styles
