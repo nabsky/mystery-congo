@@ -118,14 +118,14 @@ fun MainScreen() {
             label = "bg"
         ) { alt ->
             val lightningRes = remember(alt) {   // или remember(seed)
-                if (Random.nextBoolean()) R.drawable.lightning1
-                else R.drawable.lightning2
+                if (Random.nextBoolean()) R.drawable.myst_bg_1
+                else R.drawable.myst_bg_2
             }
             Image(
                 painter = painterResource(
                     if (alt) {
                         lightningRes
-                    } else R.drawable.background
+                    } else R.drawable.myst_bg_0
                 ),
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
