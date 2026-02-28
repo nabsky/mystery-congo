@@ -16,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
@@ -58,10 +59,11 @@ fun JackpotAmount(
     val scale = remember { Animatable(1f) }
     val bright = remember { Animatable(0f) } // 0..1
     var prev by remember { mutableStateOf(amountMinor) }
+    var rollPrev by remember { mutableStateOf<Long?>(null) }
 
     LaunchedEffect(amountMinor) {
         if (prev == amountMinor) return@LaunchedEffect
-        prev = amountMinor
+        rollPrev = prev
 
         coroutineScope {
             // SCALE: 1 -> peak -> settle -> 1
@@ -96,6 +98,8 @@ fun JackpotAmount(
                 )
             }
         }
+        delay(32)
+        prev = amountMinor
     }
 
     val t = (bright.value * brightenTo).coerceIn(0f, 1f)
@@ -127,30 +131,33 @@ fun JackpotAmount(
                 scaleY = scale.value
             }
     ) {
-        // 1) нижний (темнее) слой — создаёт глубину
-        AmountText(
-            amountMinor = amountMinor,
-            modifier = Modifier
-                .fillMaxWidth()
-                .wrapContentHeight()
-                .graphicsLayer {
-                    alpha = 0.92f
-                    translationY = 1.4f
-                },
-            style = style,
-            format = format,
-            fillColor = bottomLayer,
-            shadow = shadow,
-            strokeColor = strokeColor,
-            strokeWidth = strokeWidth,
-            textAlign = TextAlign.Center,
-            verticalAlign = VerticalAlign.Center,
-            opticalCentering = true,
-        )
+// 1) нижний (темнее) слой — ТЕПЕРЬ fixed-cell, чтобы совпадал по сетке
+        val isRolling = rollPrev != null && rollPrev != amountMinor && t > 0.02f
+        if (!isRolling) {
+            // рисуем нижний depth-слой
+            FixedCellAmountText(
+                amountMinor = amountMinor,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight()
+                    .graphicsLayer {
+                        alpha = 0.92f
+                        translationY = 1.4f
+                    },
+                style = style,
+                format = format,
+                fillColor = bottomLayer,
+                shadow = shadow,
+                strokeColor = strokeColor,
+                strokeWidth = strokeWidth,
+                opticalCentering = true,
+            )
+        }
 
-        // 2) верхний (чуть светлее) основной слой
-        AmountText(
+// 2) основной слой — rolling
+        RollingAmountText(
             amountMinor = amountMinor,
+            prevAmountMinor = rollPrev,   // как ты уже сделал
             modifier = Modifier
                 .fillMaxWidth()
                 .wrapContentHeight(),
@@ -165,14 +172,14 @@ fun JackpotAmount(
             opticalCentering = true,
         )
 
-        // 3) top highlight — только верхняя часть, чтобы было “дороже”
+// 3) highlight — fixed-cell (и клип по высоте как у тебя)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(highlightH)
                 .clipToBounds()
         ) {
-            AmountText(
+            FixedCellAmountText(
                 amountMinor = amountMinor,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -181,10 +188,9 @@ fun JackpotAmount(
                 style = style,
                 format = format,
                 fillColor = highlightColor,
+                shadow = TextShadowSpec(Color.Transparent, Offset.Zero, 0f),
                 strokeColor = Color.Transparent,
                 strokeWidth = 0.dp,
-                textAlign = TextAlign.Center,
-                verticalAlign = VerticalAlign.Center,
                 opticalCentering = true,
             )
         }
