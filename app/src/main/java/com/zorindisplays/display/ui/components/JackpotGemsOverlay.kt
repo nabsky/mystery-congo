@@ -4,8 +4,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import com.zorindisplays.display.R
+import com.zorindisplays.display.ui.components.gemParallax
 
 @Composable
 fun JackpotGemsOverlay(
@@ -15,9 +18,13 @@ fun JackpotGemsOverlay(
     val goldR = painterResource(R.drawable.gold_r_205x130)
     val jadeR = painterResource(R.drawable.jade_r_116x140)
 
+    val density = LocalDensity.current
+    val ampPxRuby = with(density) { 2.0.dp.toPx() }
+    val ampPxGold = with(density) { 1.6.dp.toPx() }
+    val ampPxJade = with(density) { 1.4.dp.toPx() }
+
     BoxWithConstraints(modifier = modifier) {
 
-        // Ruby:
         PositionedLayer(
             anchor = Offset(0.79f, 0.15f),
             sizeFrac = 0.22f,
@@ -30,11 +37,10 @@ fun JackpotGemsOverlay(
                 painter = ruby,
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
-                modifier = m
+                modifier = m.gemParallax(seed = 11, ampPx = ampPxRuby, periodMs = 17000)
             )
         }
 
-        // Gold:
         PositionedLayer(
             anchor = Offset(0.24f, 0.42f),
             sizeFrac = 0.21f,
@@ -46,11 +52,10 @@ fun JackpotGemsOverlay(
                 painter = goldR,
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
-                modifier = m
+                modifier = m.gemParallax(seed = 22, ampPx = ampPxGold, periodMs = 21000)
             )
         }
 
-        // Jade:
         PositionedLayer(
             anchor = Offset(0.74f, 0.66f),
             sizeFrac = 0.16f,
@@ -58,12 +63,11 @@ fun JackpotGemsOverlay(
             alpha = 0.74f,
             blurDp = 0f,
         ) { m ->
-
             Image(
                 painter = jadeR,
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
-                modifier = m
+                modifier = m.gemParallax(seed = 33, ampPx = ampPxJade, periodMs = 24000)
             )
         }
     }

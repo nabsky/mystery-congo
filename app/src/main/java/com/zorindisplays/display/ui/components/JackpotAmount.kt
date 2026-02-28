@@ -54,7 +54,8 @@ fun JackpotAmount(
     depthDarken: Float = 0.18f,          // насколько затемнить нижний слой
     topLighten: Float = 0.14f,           // насколько осветлить верхний слой
     highlightAlpha: Float = 0.14f,       // 0.08..0.18
-    highlightHeightFrac: Float = 0.36f,  // доля высоты текста для хайлайта
+    highlightHeightFrac: Float = 0.36f,
+    maxRollingDigitsFromEnd: Int,
 ) {
     val scale = remember { Animatable(1f) }
     val bright = remember { Animatable(0f) } // 0..1
@@ -170,6 +171,7 @@ fun JackpotAmount(
             textAlign = TextAlign.Center,
             verticalAlign = VerticalAlign.Center,
             opticalCentering = true,
+            maxRollingDigitsFromEnd = maxRollingDigitsFromEnd,
         )
 
 // 3) highlight — fixed-cell (и клип по высоте как у тебя)

@@ -1,9 +1,15 @@
 package com.zorindisplays.display.ui.components
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -13,7 +19,20 @@ import kotlin.math.min
 @Composable
 fun GemSpotlightsOverlay(
     modifier: Modifier = Modifier,
+    strength: Float = 1f,   // общий множитель, можно 0.8f если хочется тише
+    periodMs: Int = 12000,
 ) {
+    val tr = rememberInfiniteTransition(label = "gemSpotPulse")
+    val pulse by tr.animateFloat(
+        initialValue = 0.88f,
+        targetValue = 1.00f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(periodMs),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse"
+    )
+
     BoxWithConstraints(modifier = modifier) {
         Canvas(Modifier.fillMaxSize()) {
             val w = size.width
@@ -26,7 +45,7 @@ fun GemSpotlightsOverlay(
                 drawCircle(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            color.copy(alpha = alpha),
+                            color.copy(alpha = (alpha * pulse * strength).coerceIn(0f, 1f)),
                             Color.Transparent
                         ),
                         center = center,
@@ -37,7 +56,7 @@ fun GemSpotlightsOverlay(
                 )
             }
 
-            // Ruby (верх справа)
+            // Ruby
             glow(
                 anchor = Offset(0.79f, 0.15f),
                 color = Color(0xFFFF2A2A),
@@ -45,7 +64,7 @@ fun GemSpotlightsOverlay(
                 radiusFrac = 0.20f
             )
 
-            // Gold (слева)
+            // Gold
             glow(
                 anchor = Offset(0.24f, 0.42f),
                 color = Color(0xFFFFE08A),
@@ -53,7 +72,7 @@ fun GemSpotlightsOverlay(
                 radiusFrac = 0.20f
             )
 
-            // Jade (низ справа)
+            // Jade
             glow(
                 anchor = Offset(0.74f, 0.66f),
                 color = Color(0xFF59E0A7),

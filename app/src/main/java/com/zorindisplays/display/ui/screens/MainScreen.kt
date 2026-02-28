@@ -140,6 +140,7 @@ fun MainScreen() {
             ),
             strokeColor = Color.Black.copy(alpha = 0.18f),
             strokeWidth = 1.3.dp,
+            maxRollingDigitsFromEnd = 4
         )
 
         JackpotAmount(
@@ -166,6 +167,7 @@ fun MainScreen() {
             ),
             strokeColor = Color.Black.copy(alpha = 0.14f),
             strokeWidth = 1.2.dp,
+            maxRollingDigitsFromEnd = 4,
         )
 
         JackpotAmount(
@@ -192,6 +194,7 @@ fun MainScreen() {
             ),
             strokeColor = Color.Black.copy(alpha = 0.14f),
             strokeWidth = 1.2.dp,
+            maxRollingDigitsFromEnd = 4,
         )
 
         TableRowView(

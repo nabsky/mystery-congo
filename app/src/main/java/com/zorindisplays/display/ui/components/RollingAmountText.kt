@@ -55,6 +55,7 @@ fun RollingAmountText(
     // animation tuning
     rollUpMs: Int = 140,
     rollDownMs: Int = 260,
+    maxRollingDigitsFromEnd: Int = 4
 ) {
     val newText = remember(amountMinor, format) { formatMoneyFromMinorPublic(amountMinor, format) }
     val oldText = remember(prevAmountMinor, format) {
@@ -65,6 +66,10 @@ fun RollingAmountText(
     val maxLen = max(newText.length, oldText?.length ?: 0)
     val newNorm = newText.padStart(maxLen, ' ')
     val oldNorm = (oldText ?: newText).padStart(maxLen, ' ')
+
+    val canRoll = remember(newNorm, maxRollingDigitsFromEnd) {
+        computeRollingMaskFromEnd(newNorm, maxRollingDigitsFromEnd)
+    }
 
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
@@ -111,7 +116,7 @@ fun RollingAmountText(
                     strokePx = strokePx,
                 )
 
-                if (isDigit && changed) {
+                if (isDigit && changed && canRoll[i]) {
                     RollingChar(
                         oldCh = oldCh,
                         newCh = newCh,
@@ -156,6 +161,19 @@ fun RollingAmountText(
             }
         }
     }
+}
+
+private fun computeRollingMaskFromEnd(text: String, maxDigits: Int): BooleanArray {
+    val mask = BooleanArray(text.length)
+    var digits = 0
+    for (i in text.length - 1 downTo 0) {
+        val ch = text[i]
+        if (ch.isDigit()) {
+            digits++
+            if (digits <= maxDigits) mask[i] = true
+        }
+    }
+    return mask
 }
 
 @Composable
