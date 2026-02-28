@@ -43,22 +43,17 @@ fun TableRowView(
     tableCount: Int,
     modifier: Modifier = Modifier,
 
-    // фиксированная высота компонента (ставь внизу через align(Alignment.BottomCenter))
     height: Dp = 240.dp,
 
-    // отступы
     horizontalPadding: Dp = 16.dp,
     bottomPadding: Dp = 14.dp,
 
-    // геометрия кружков
-    spacingToRadius: Float = 0.30f,   // как в Java: s = r * 0.3
-    borderToRadius: Float = 0.18f,    // толщина обводки = r * 0.18
+    spacingToRadius: Float = 0.30f,
+    borderToRadius: Float = 0.18f,
 
-    // цифра над столом (СТИЛЬ И РАЗМЕР НЕ ТРОГАЕМ)
     labelTextStyle: TextStyle = TextStyle(color = Color.White),
     labelGapAboveTable: Dp = 10.dp,
 
-    // точки между цифрами
     showDotsBetweenTables: Boolean = true,
     dotRadius: Dp = 2.5.dp,
 
@@ -68,6 +63,9 @@ fun TableRowView(
         bet = Color(0xFFFFD54F),
         text = Color(0xFFFFFFFF),
     ),
+
+    // NEW: центры боксов в координатах Canvas (локальные для TableRowView)
+    onBoxCenters: ((Map<Pair<Int, Int>, Offset>) -> Unit)? = null,
 ) {
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
@@ -90,8 +88,6 @@ fun TableRowView(
         val wPx = size.width
         val availableW = (wPx - 2f * hp).coerceAtLeast(0f)
 
-        // --- 1) измеряем высоту цифры (по твоему labelTextStyle)
-        // берём самый широкий/высокий текст для стабильности: "88" или max номер стола
         val maxLabelText = max(1, n).toString()
         val labelLayout = measurer.measure(
             text = AnnotatedString(maxLabelText),
@@ -99,14 +95,10 @@ fun TableRowView(
         )
         val labelH = labelLayout.size.height.toFloat()
 
-        // --- 2) считаем максимально возможный r по оставшейся высоте
-        // tableH = (2r + s)*3, s=r*spacingToRadius => tableH = r*(2+spacing)*3
         val spacingFactor = (2f + spacingToRadius)
-        val tableFactor = spacingFactor * 3f // и для ширины, и для высоты
+        val tableFactor = spacingFactor * 3f
         val maxTableH = (hPx - bp - labelGapPx - labelH).coerceAtLeast(0f)
         val rByHeight = if (tableFactor > 0f) maxTableH / tableFactor else 0f
-
-        // --- 3) ограничение по ширине: чтобы влезли N столов (gap может быть 0, а потом посчитаем space-evenly)
         val rByWidth = if (tableFactor > 0f && n > 0) availableW / (n * tableFactor) else 0f
 
         val r = max(0f, min(rByHeight, rByWidth))
@@ -116,25 +108,23 @@ fun TableRowView(
         val tableW = r * tableFactor
         val tableH = r * tableFactor
 
-        // --- 4) space-evenly: (N+1) одинаковых gap’ов
         val leftoverW = (availableW - n * tableW).coerceAtLeast(0f)
         val gap = leftoverW / (n + 1)
 
         fun tableLeftX(i: Int) = hp + gap + i * (tableW + gap)
         fun tableCenterX(i: Int) = tableLeftX(i) + tableW / 2f
 
-        // --- 5) позиция по Y: столы снизу, цифры над ними
         val tableTopY = (hPx - bp - tableH).coerceAtLeast(0f)
         val labelCenterY = (tableTopY - labelGapPx - labelH / 2f).coerceAtLeast(0f)
 
-        // --- 6) рисование
+        val centers = if (onBoxCenters != null) LinkedHashMap<Pair<Int, Int>, Offset>(n * 9) else null
+
         for (i in 0 until n) {
             val left = tableLeftX(i)
             val centerX = tableCenterX(i)
 
             val isActive = states?.isActive(i + 1) == true
 
-            // 3x3 кружки
             for (j in 0 until 9) {
                 val row = j / 3
                 val col = j % 3
@@ -142,6 +132,8 @@ fun TableRowView(
                 val x = left + col * (r * 2f + s)
                 val y = tableTopY + row * (r * 2f + s)
                 val c = Offset(x + r, y + r)
+
+                centers?.put((i + 1) to boxMap[j], c)
 
                 val hasBet = isActive && (states?.hasBetOnBox(i + 1, boxMap[j]) == true)
 
@@ -156,7 +148,6 @@ fun TableRowView(
                 }
             }
 
-            // цифра над столом (стиль фиксированный)
             drawTextCenteredCompat(
                 measurer = measurer,
                 text = (i + 1).toString(),
@@ -165,7 +156,6 @@ fun TableRowView(
             )
         }
 
-        // точки между цифрами — в середине между соседними центрами
         if (showDotsBetweenTables && n > 1) {
             for (i in 0 until n - 1) {
                 val midX = (tableCenterX(i) + tableCenterX(i + 1)) / 2f
@@ -177,12 +167,11 @@ fun TableRowView(
                 )
             }
         }
+
+        centers?.let { onBoxCenters?.invoke(it) }
     }
 }
 
-/**
- * Совместимо со старыми версиями Compose: без topLeft.
- */
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTextCenteredCompat(
     measurer: androidx.compose.ui.text.TextMeasurer,
     text: String,
