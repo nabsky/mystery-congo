@@ -1,6 +1,9 @@
 package com.zorindisplays.display.ui.screens
 
 import JackpotGemsOverlay
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.TweenSpec
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
@@ -9,8 +12,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
@@ -30,6 +36,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToLong
 
 private sealed interface WinPhase {
     data object None : WinPhase
@@ -157,6 +164,8 @@ fun MainScreen() {
         }
 
         val h = maxHeight
+        val overlayH = maxHeight
+        val hPxLocal = hPx
 
         // ======== Base scene layers (не показываем, когда Takeover) ========
         val takeover = win is WinPhase.Takeover
@@ -394,82 +403,230 @@ fun MainScreen() {
             val title = jackpotTitle(t.level)
             val subtitle = "WAS WON BY BOX ${t.box} AT TABLE ${t.table}"
 
+            val tier = remember(t.level) { tierForLevel(t.level) }
+            val spec = remember(tier) { tierSpec(tier) }
+
+            // --- layout specs based on H ---
+            val gemTop = overlayH * 0.12f
+            val gemHeight = overlayH * 0.065f
+            val gemBottomGap = overlayH * 0.03f
+            val titleBottomGap = overlayH * 0.04f
+            val amountBottomGap = overlayH * 0.045f
+            val subtitleBottomGap = overlayH * 0.06f
+
+            val titleFont = with(density) { (hPxLocal * 0.048f).toSp() }
+            val subtitleFont = with(density) { (hPxLocal * 0.039f).toSp() }
+            val amountFont = with(density) { (hPxLocal * 0.13f).toSp() }
+
+            // --- animations (2.5s) ---
+            val gemScale = remember { Animatable(1f) }
+            val titleAlpha = remember { Animatable(0f) }
+            val amountAlpha = remember { Animatable(1f) }
+            val tablePulse = remember { Animatable(1f) }
+            val counterProgress = remember { Animatable(0f) }
+            val introDone = remember { mutableStateOf(false) }
+
+            LaunchedEffect(t.level, t.table, t.box, t.amountWon) {
+                introDone.value = false
+
+                // 0.0–0.5: gem bounce + title fade
+                gemScale.snapTo(spec.gemIntroFrom)
+                titleAlpha.snapTo(0f)
+                amountAlpha.snapTo(1f)
+                tablePulse.snapTo(1f)
+                counterProgress.snapTo(0f)
+
+                // bounce: 0.8 -> 1.1 -> 1.0
+                gemScale.animateTo(spec.gemIntroPeak, animationSpec = TweenSpec(durationMillis = spec.gemIntroPeakMs, easing = FastOutSlowInEasing))
+                gemScale.animateTo(1.0f, animationSpec = TweenSpec(durationMillis = spec.gemIntroSettleMs, easing = FastOutSlowInEasing))
+
+                // title fade in during first 500ms
+                titleAlpha.animateTo(0.90f, animationSpec = TweenSpec(durationMillis = 500, easing = FastOutSlowInEasing))
+
+                // 0.5–~: counter 0 -> final
+                counterProgress.animateTo(1f, animationSpec = TweenSpec(durationMillis = spec.counterIntroMs, easing = FastOutSlowInEasing))
+
+                // размер суммы не меняем
+
+                // 2.0s: table pulse
+                delay((2000 - (500 + spec.counterIntroMs + spec.impactPulseUpMs + spec.impactPulseDownMs)).coerceAtLeast(0).toLong())
+                tablePulse.animateTo(1.1f, animationSpec = TweenSpec(durationMillis = 140, easing = FastOutSlowInEasing))
+                tablePulse.animateTo(1f, animationSpec = TweenSpec(durationMillis = 240, easing = FastOutSlowInEasing))
+
+                introDone.value = true
+            }
+
+            // Быстрая пульсация альфы суммы (без изменения масштаба)
+            LaunchedEffect(t.level, t.table, t.box, t.amountWon) {
+                amountAlpha.snapTo(1f)
+                // стартуем после интро-кадра счётчика
+                delay((500 + spec.counterIntroMs).toLong())
+                while (true) {
+                    amountAlpha.animateTo(0.82f, animationSpec = TweenSpec(durationMillis = 340, easing = FastOutSlowInEasing))
+                    amountAlpha.animateTo(1f, animationSpec = TweenSpec(durationMillis = 340, easing = FastOutSlowInEasing))
+                }
+            }
+
+            // Idle breathing для amount (после intro)
+            val breathe = remember { Animatable(1f) }
+            LaunchedEffect(t.level, t.table, t.box, t.amountWon) {
+                breathe.snapTo(1f)
+                // ждём конец интро
+                delay((500 + spec.counterIntroMs + spec.impactPulseUpMs + spec.impactPulseDownMs).toLong())
+                while (true) {
+                    breathe.animateTo(1f + spec.breatheAmp, animationSpec = TweenSpec(durationMillis = spec.breathePeriodMs / 2, easing = FastOutSlowInEasing))
+                    breathe.animateTo(1f, animationSpec = TweenSpec(durationMillis = spec.breathePeriodMs / 2, easing = FastOutSlowInEasing))
+                }
+            }
+
+            // Idle pulse стола (редко, премиально)
+            val tableIdle = remember { Animatable(1f) }
+            LaunchedEffect(t.level, t.table, t.box, t.amountWon) {
+                tableIdle.snapTo(1f)
+                // старт после 2.2s (после коротких частиц)
+                delay(2200)
+                while (true) {
+                    val period = spec.tablePulsePeriodMs
+                    // простой редкий pulse
+                    tableIdle.animateTo(spec.tablePulseAmp, animationSpec = TweenSpec(durationMillis = 180, easing = FastOutSlowInEasing))
+                    tableIdle.animateTo(1f, animationSpec = TweenSpec(durationMillis = 420, easing = FastOutSlowInEasing))
+                    delay((period - 600).coerceAtLeast(1200).toLong())
+                }
+            }
+
             Box(Modifier.fillMaxSize()) {
                 Canvas(Modifier.fillMaxSize()) { drawRect(bg) }
 
-                // Титры (по центру, как раньше)
+                // GOLD image (gem) + glow
                 Box(
-                    Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .offset(y = gemTop)
+                        .height(gemHeight),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
+                    val gemRes = when (t.level) {
+                        1 -> R.drawable.ruby_195x120
+                        2 -> R.drawable.gold_r_205x130
+                        else -> R.drawable.jade_r_116x140
+                    }
+
+                    // subtle radial glow (15–20% opacity)
+                    Canvas(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .graphicsLayer(alpha = 0.18f)
                     ) {
-                        // Камень прямо над текстом
-                        val gemRes = when (t.level) {
-                            1 -> R.drawable.ruby_195x120
-                            2 -> R.drawable.gold_r_205x130
-                            else -> R.drawable.jade_r_116x140
-                        }
-                        Image(
-                            painter = painterResource(gemRes),
-                            contentDescription = null,
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier
-                                .height(74.dp)
-                                .padding(bottom = 12.dp)
-                        )
-
-                        BasicText(
-                            text = title,
-                            style = TextStyle(
-                                color = Color.White.copy(alpha = 0.92f),
-                                fontFamily = MontserratBold,
-                                fontSize = 26.sp,
-                                letterSpacing = 4.sp,
-                            )
-                        )
-
-                        Spacer(Modifier.height(18.dp))
-
-                        AmountText(
-                            amountMinor = t.amountWon,
-                            modifier = Modifier,
-                            style = TextStyle(
-                                fontFamily = MontserratBold,
-                                fontSize = 110.sp,
+                        val radius = min(size.width, size.height) * 0.75f
+                        drawCircle(
+                            brush = Brush.radialGradient(
+                                colors = listOf(Color.White.copy(alpha = 0.22f), Color.Transparent),
+                                radius = radius,
+                                center = center
                             ),
-                            format = MoneyFormat(
-                                currency = "",
-                                currencyPosition = CurrencyPosition.Prefix,
-                                thousandsSeparator = ' ',
-                                decimalSeparator = ',',
-                                fractionDigits = 0,
-                                showCents = false
-                            ),
-                            fillColor = Color.White,
-                            strokeColor = Color.Transparent,
-                            strokeWidth = 0.dp,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            verticalAlign = VerticalAlign.Center,
-                            opticalCentering = true
-                        )
-
-                        Spacer(Modifier.height(16.dp))
-
-                        BasicText(
-                            text = subtitle,
-                            style = TextStyle(
-                                color = Color.White.copy(alpha = 0.86f),
-                                fontFamily = MontserratBold,
-                                fontSize = 20.sp,
-                                letterSpacing = 1.6.sp,
-                            )
+                            radius = radius,
+                            center = center
                         )
                     }
+
+                    Image(
+                        painter = painterResource(gemRes),
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .graphicsLayer(scaleX = gemScale.value * 2f, scaleY = gemScale.value * 2f)
+                    )
                 }
 
-                // Низ: только один выигравший стол по центру, размер как в обычном режиме
+                // Text block (center). Do not change bg color.
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    val animatedAmount = (t.amountWon.toFloat() * counterProgress.value).roundToLong()
+                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                         Spacer(Modifier.height(gemTop + gemHeight + gemBottomGap - overlayH * 0.5f))
+
+                         BasicText(
+                             text = title,
+                             style = TextStyle(
+                                 color = Color.White.copy(alpha = titleAlpha.value),
+                                 fontFamily = MontserratBold,
+                                 fontSize = titleFont,
+                                 letterSpacing = titleFont * 0.09f,
+                             )
+                         )
+
+                         Spacer(Modifier.height(titleBottomGap))
+
+                         // Stable centering: render final amount invisibly to reserve width, then overlay animated amount.
+                         Box(
+                             modifier = Modifier
+                                   .clip(RoundedCornerShape(0.dp)),
+                               contentAlignment = Alignment.Center
+                          ) {
+                               // width reserver
+                               AmountText(
+                                   amountMinor = t.amountWon,
+                                  // alpha=0 may cause some impls to skip measuring; keep almost-transparent to reserve width safely
+                                  modifier = Modifier.graphicsLayer(alpha = 0.001f),
+                                   style = TextStyle(fontFamily = MontserratBold, fontSize = amountFont),
+                                   format = MoneyFormat(
+                                       currency = "",
+                                       currencyPosition = CurrencyPosition.Prefix,
+                                       thousandsSeparator = ' ',
+                                       decimalSeparator = ',',
+                                       fractionDigits = 0,
+                                       showCents = false
+                                   ),
+                                   fillColor = Color.White,
+                                   strokeColor = Color.Transparent,
+                                   strokeWidth = 0.dp,
+                                   textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                   verticalAlign = VerticalAlign.Center,
+                                   opticalCentering = true
+                               )
+
+                               // actual animated amount
+                               AmountText(
+                                   amountMinor = animatedAmount,
+                                   modifier = Modifier.graphicsLayer(alpha = amountAlpha.value),
+                                   style = TextStyle(fontFamily = MontserratBold, fontSize = amountFont),
+                                   format = MoneyFormat(
+                                       currency = "",
+                                       currencyPosition = CurrencyPosition.Prefix,
+                                       thousandsSeparator = ' ',
+                                       decimalSeparator = ',',
+                                       fractionDigits = 0,
+                                       showCents = false
+                                   ),
+                                   fillColor = Color.White,
+                                   strokeColor = Color.Transparent,
+                                   strokeWidth = 0.dp,
+                                   textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                   verticalAlign = VerticalAlign.Center,
+                                   opticalCentering = true
+                               )
+                           }
+
+                         Spacer(Modifier.height(amountBottomGap))
+
+                         BasicText(
+                             text = subtitle,
+                             style = TextStyle(
+                                 color = Color.White.copy(alpha = 0.74f),
+                                 fontFamily = MontserratBold,
+                                 fontSize = subtitleFont,
+                                 letterSpacing = subtitleFont * 0.03f,
+                             )
+                         )
+
+                         Spacer(Modifier.height(subtitleBottomGap))
+                     }
+                 }
+
+                // Bottom table block: keep position (bottom) and size as in normal.
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -478,12 +635,7 @@ fun MainScreen() {
                     contentAlignment = Alignment.BottomCenter
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        // Номер выигравшего стола
-                        BasicText(
-                            text = t.table.toString(),
-                            style = labelStyle
-                        )
-
+                        BasicText(text = t.table.toString(), style = labelStyle)
                         Spacer(Modifier.height(10.dp))
 
                         val winnerTableStates = remember(t.box) {
@@ -496,9 +648,13 @@ fun MainScreen() {
                         TableRowView(
                             states = winnerTableStates,
                             tableCount = 1,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .graphicsLayer(
+                                    scaleX = tablePulse.value * tableIdle.value,
+                                    scaleY = tablePulse.value * tableIdle.value
+                                 ),
                             height = tableHeight,
-                            // лейбл внутри TableRowView отключаем, т.к. он всегда "1"
                             labelTextStyle = labelStyle.copy(fontSize = 0.sp),
                             showDotsBetweenTables = false,
                             colors = TableViewColors(
@@ -611,4 +767,86 @@ private fun computeBoxCenterInRootPx(
     val yLocal = tableTopYLocal + row * (r * 2f + s) + r
 
     return Offset(xLocal, panelTopInRoot + yLocal)
+}
+
+private enum class JackpotTier { Ruby, Gold, Jade }
+
+private data class TierMotionSpec(
+     val gemIntroFrom: Float,
+     val gemIntroPeak: Float,
+     val gemIntroPeakMs: Int,
+     val gemIntroSettleMs: Int,
+     val counterIntroMs: Int,
+     val impactPulsePeak: Float,
+     val impactPulseUpMs: Int,
+     val impactPulseDownMs: Int,
+     val breatheAmp: Float,
+     val breathePeriodMs: Int,
+     val tablePulseAmp: Float,
+     val tablePulsePeriodMs: Int,
+     val idleParticles: Int,
+     val idleParticleSpeedPxPerSec: Float,
+     val idleParticleAlpha: Float,
+)
+
+private fun tierForLevel(level: Int): JackpotTier = when (level) {
+    1 -> JackpotTier.Ruby
+    2 -> JackpotTier.Gold
+    else -> JackpotTier.Jade
+}
+
+private fun tierSpec(tier: JackpotTier): TierMotionSpec = when (tier) {
+    JackpotTier.Ruby -> TierMotionSpec(
+        gemIntroFrom = 0.80f,
+        gemIntroPeak = 1.15f,
+        gemIntroPeakMs = 260,
+        gemIntroSettleMs = 240,
+        counterIntroMs = 1250,
+        impactPulsePeak = 1.08f,
+        impactPulseUpMs = 120,
+        impactPulseDownMs = 160,
+        breatheAmp = 0.025f,
+        breathePeriodMs = 3000,
+        tablePulseAmp = 1.065f,
+        tablePulsePeriodMs = 5400,
+        idleParticles = 16,
+        idleParticleSpeedPxPerSec = -16f, // немного вверх + дрейф
+        idleParticleAlpha = 0.18f,
+    )
+
+    JackpotTier.Gold -> TierMotionSpec(
+        gemIntroFrom = 0.85f,
+        gemIntroPeak = 1.10f,
+        gemIntroPeakMs = 280,
+        gemIntroSettleMs = 260,
+        counterIntroMs = 1500,
+        impactPulsePeak = 1.06f,
+        impactPulseUpMs = 120,
+        impactPulseDownMs = 160,
+        breatheAmp = 0.018f,
+        breathePeriodMs = 3800,
+        tablePulseAmp = 1.055f,
+        tablePulsePeriodMs = 7200,
+        idleParticles = 12,
+        idleParticleSpeedPxPerSec = 10f, // медленно вниз
+        idleParticleAlpha = 0.15f,
+    )
+
+    JackpotTier.Jade -> TierMotionSpec(
+        gemIntroFrom = 0.85f,
+        gemIntroPeak = 1.08f,
+        gemIntroPeakMs = 300,
+        gemIntroSettleMs = 300,
+        counterIntroMs = 1750,
+        impactPulsePeak = 1.05f,
+        impactPulseUpMs = 130,
+        impactPulseDownMs = 170,
+        breatheAmp = 0.015f,
+        breathePeriodMs = 4300,
+        tablePulseAmp = 1.045f,
+        tablePulsePeriodMs = 8400,
+        idleParticles = 9,
+        idleParticleSpeedPxPerSec = 8f, // диагональ мягко
+        idleParticleAlpha = 0.12f,
+    )
 }
