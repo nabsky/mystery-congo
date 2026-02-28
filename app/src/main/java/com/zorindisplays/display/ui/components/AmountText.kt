@@ -3,12 +3,14 @@ package com.zorindisplays.display.ui.components
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Shadow
 import java.math.BigDecimal
 import java.math.RoundingMode
 
@@ -24,6 +26,7 @@ fun AmountText(
     textAlign: TextAlign = TextAlign.Start,
     verticalAlign: VerticalAlign = VerticalAlign.Top,
     opticalCentering: Boolean = false,
+    shadow: TextShadowSpec = TextShadowSpec(Color.Transparent, Offset.Zero, 0f),
     roundingMode: RoundingMode = RoundingMode.HALF_UP,
 ) {
     val minor = remember(amount, format.fractionDigits, roundingMode) {
@@ -43,6 +46,7 @@ fun AmountText(
         strokeWidth = strokeWidth,
         textAlign = textAlign,
         verticalAlign = verticalAlign,
+        shadow = shadow,
         opticalCentering = opticalCentering
     )
 }
@@ -58,6 +62,7 @@ fun AmountText(
     strokeWidth: Dp = 3.dp,
     textAlign: TextAlign = TextAlign.Start,
     verticalAlign: VerticalAlign = VerticalAlign.Top,
+    shadow: TextShadowSpec = TextShadowSpec(Color.Transparent, Offset.Zero, 0f),
     opticalCentering: Boolean = false,
     maxLines: Int = 1,
     overflow: TextOverflow = TextOverflow.Clip,
@@ -68,6 +73,7 @@ fun AmountText(
         text = text,
         modifier = modifier,
         style = style,
+        shadow = shadow,
         fillColor = fillColor,
         strokeColor = strokeColor,
         strokeWidth = strokeWidth,

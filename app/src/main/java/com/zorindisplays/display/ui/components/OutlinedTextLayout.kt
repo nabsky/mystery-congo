@@ -3,6 +3,7 @@ package com.zorindisplays.display.ui.components
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -23,6 +24,12 @@ import androidx.compose.ui.unit.offset
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
+data class TextShadowSpec(
+    val color: Color,
+    val offset: Offset,
+    val blurRadius: Float = 0f // условный "blur": чем больше, тем больше проходов
+)
+
 @Composable
 fun OutlinedTextLayout(
     text: String,
@@ -37,6 +44,7 @@ fun OutlinedTextLayout(
     textAlign: TextAlign = TextAlign.Start,
     verticalAlign: VerticalAlign = VerticalAlign.Top,
     opticalCentering: Boolean = false,
+    shadow: TextShadowSpec? = null,
     ) {
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
@@ -93,6 +101,34 @@ fun OutlinedTextLayout(
                         strokePx + dx,
                         strokePx + dy
                     )
+
+                    shadow?.let { sh ->
+                        val steps = ((sh.blurRadius / 3f).roundToInt()).coerceIn(1, 8)
+
+                        canvas.save()
+                        canvas.translate(sh.offset.x, sh.offset.y)
+
+                        for (i in 1..steps) {
+                            val t = i / steps.toFloat()
+                            val a = (1f - t) * 0.16f
+
+                            val xJitter = (i - steps / 2f) * 0.15f
+                            val ySpread = i * 0.75f
+
+                            canvas.save()
+                            canvas.translate(xJitter, ySpread)
+
+                            layoutResult.multiParagraph.paint(
+                                canvas = canvas,
+                                color = sh.color.copy(alpha = sh.color.alpha * a),
+                                drawStyle = Fill,
+                            )
+
+                            canvas.restore()
+                        }
+
+                        canvas.restore()
+                    }
 
                     layoutResult.multiParagraph.paint(
                         canvas = canvas,
