@@ -1,8 +1,11 @@
 package com.zorindisplays.display.emulator
 
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlin.random.Random
 
@@ -11,12 +14,13 @@ data class DemoState(
     val jackpot2: Long = 500_000,
     val jackpot3: Long = 100_000,
 
-    // активные столы (keep-alive)
     val activeTables: Set<Int> = emptySet(),
-
-    // preview ставки: table -> boxes (может быть несколько столов одновременно)
     val litBets: Map<Int, Set<Int>> = emptyMap(),
 )
+
+sealed interface DemoEvent {
+    data class JackpotWin(val level: Int) : DemoEvent // 1..3
+}
 
 class Emulator(
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
@@ -26,12 +30,12 @@ class Emulator(
     private val _state = MutableStateFlow(DemoState())
     val state: StateFlow<DemoState> = _state.asStateFlow()
 
+    private val _events = MutableSharedFlow<DemoEvent>(extraBufferCapacity = 32)
+    val events: SharedFlow<DemoEvent> = _events.asSharedFlow()
+
     private val rnd = Random.Default
 
-    // “реализм”: обычно почти все активны, иногда 1 стол может быть офф надолго
     private var stableInactive: Set<Int> = emptySet()
-
-    // ограничим параллельные сценарии ставок
     private val inFlight = mutableSetOf<Int>()
     private val maxConcurrentBets = 3
 
@@ -43,8 +47,6 @@ class Emulator(
     fun stop() {
         scope.coroutineContext.cancel()
     }
-
-    // ---------- network-like inputs (future) ----------
 
     fun onKeepAlive(active: Set<Int>) {
         _state.value = _state.value.copy(activeTables = active)
@@ -67,8 +69,7 @@ class Emulator(
         _state.value = s.copy(litBets = m)
     }
 
-    fun onResult(win: Boolean) {
-        if (win) return
+    private fun onNoWinBump() {
         val s = _state.value
         _state.value = s.copy(
             jackpot1 = s.jackpot1 + 1000,
@@ -77,21 +78,18 @@ class Emulator(
         )
     }
 
+    private suspend fun emitWin(level: Int) {
+        _events.emit(DemoEvent.JackpotWin(level))
+    }
+
     // ---------- loops ----------
 
     private suspend fun activeTablesLoop() {
-        // старт: иногда 0 или 1 неактивный
         stableInactive = pickStableInactive()
-
         while (scope.isActive) {
-            // редко меняем “неактивные” (например раз в ~60–90 сек)
-            if (rnd.nextFloat() < 0.02f) {
-                stableInactive = pickStableInactive()
-            }
-
+            if (rnd.nextFloat() < 0.02f) stableInactive = pickStableInactive()
             val active = (1..tableCount).filterNot { stableInactive.contains(it) }.toSet()
             onKeepAlive(active)
-
             delay(900L + rnd.nextLong(-120L, 180L))
         }
     }
@@ -104,7 +102,6 @@ class Emulator(
             if (active.isEmpty()) continue
             if (inFlight.size >= maxConcurrentBets) continue
 
-            // выбираем стол, который не занят сценарием
             val candidates = active.filterNot { inFlight.contains(it) }
             if (candidates.isEmpty()) continue
             val table = candidates.random(rnd)
@@ -127,26 +124,35 @@ class Emulator(
         while (boxes.size < count) boxes += rnd.nextInt(1, boxesPerTable + 1)
         onBetPreview(table, boxes)
 
-        // держим preview (в этот период боксы горят)
         delay(1200L + rnd.nextLong(-180L, 260L))
 
-        // 2) confirm (в этот момент вылетят монетки + confirm-flash в TableStage)
+        // 2) confirm
         onBetConfirmed(table)
 
-        // 3) result
         delay(260L + rnd.nextLong(-60L, 80L))
-        val win = rnd.nextFloat() < 0.05f
-        onResult(win = win)
 
-        // пауза перед тем как этот стол снова может слать ставку
+        // 3) result
+        val win = rnd.nextFloat() < 0.055f
+        if (win) {
+            // какой джекпот выпал (чаще мелкий, реже большой)
+            val level = when {
+                rnd.nextFloat() < 0.08f -> 1
+                rnd.nextFloat() < 0.38f -> 2
+                else -> 3
+            }
+            emitWin(level)
+        } else {
+            onNoWinBump()
+        }
+
         delay(900L + rnd.nextLong(-220L, 320L))
     }
 
     private fun pickStableInactive(): Set<Int> {
         val roll = rnd.nextFloat()
         return when {
-            roll < 0.70f -> emptySet()                 // чаще все активны
-            roll < 0.95f -> setOf(rnd.nextInt(1, 9))   // иногда один офф
+            roll < 0.70f -> emptySet()
+            roll < 0.95f -> setOf(rnd.nextInt(1, 9))
             else -> setOf(rnd.nextInt(1, 9), rnd.nextInt(1, 9)).distinct().toSet()
         }
     }
