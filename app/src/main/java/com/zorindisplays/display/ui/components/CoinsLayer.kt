@@ -7,7 +7,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import kotlinx.coroutines.delay
-import kotlin.math.PI
 import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.random.Random
@@ -33,6 +32,7 @@ fun CoinsLayer(
     spreadPx: Float = 30f,
 
     color: Color = Color(0xFFFFE7A3),
+    reverse: Boolean = false,
 ) {
     data class Coin(
         val start: Offset,
@@ -67,27 +67,30 @@ fun CoinsLayer(
                         y = burst.targetInRoot.y + rnd.nextFloat(-24f, 24f)
                     )
 
+                    val start = if (!reverse) src else end
+                    val finish = if (!reverse) end else src
+
                     // направление к цели (по X), чтобы “вдоль” было логично
-                    val dirX = if (end.x >= src.x) 1f else -1f
+                    val dirX = if (finish.x >= start.x) 1f else -1f
 
                     // c1: почти по линии столов (y ≈ start.y), двигаемся в сторону цели
                     val c1 = Offset(
-                        x = src.x + dirX * (sideStepPx + rnd.nextFloat(-18f, 18f)),
-                        y = src.y + rnd.nextFloat(-10f, 10f)
+                        x = start.x + dirX * (sideStepPx + rnd.nextFloat(-18f, 18f)),
+                        y = start.y + rnd.nextFloat(-10f, 10f)
                     )
 
                     // c2: уже заметно выше, ближе к цели по X
                     val c2 = Offset(
-                        x = src.x + (end.x - src.x) * 0.65f + rnd.nextFloat(-24f, 24f),
-                        y = minOf(src.y, end.y) - liftPx + rnd.nextFloat(-28f, 28f)
+                        x = start.x + (finish.x - start.x) * 0.65f + rnd.nextFloat(-24f, 24f),
+                        y = minOf(start.y, finish.y) - liftPx + rnd.nextFloat(-28f, 28f)
                     )
 
                     add(
                         Coin(
-                            start = src,
+                            start = start,
                             c1 = c1,
                             c2 = c2,
-                            end = end,
+                            end = finish,
                             bornMs = now,
                             ttlMs = durationMs + rnd.nextInt(-120, 160),
                             size = rnd.nextFloat(5.5f, 9.5f),

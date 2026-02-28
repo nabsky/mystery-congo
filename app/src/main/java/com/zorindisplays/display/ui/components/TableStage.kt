@@ -6,6 +6,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.text.TextStyle
@@ -14,6 +15,13 @@ import com.nabsky.mystery.component.TableRowView
 import com.nabsky.mystery.component.TableStatesLike
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+@Immutable
+data class WinnerFocus(
+    val table: Int,
+    val box: Int,
+    val color: Color
+)
 
 @Composable
 fun TableStage(
@@ -27,6 +35,8 @@ fun TableStage(
 
     // склейка
     confirmFlashMs: Long = 110L,
+    winner: WinnerFocus? = null,
+    onCentersReady: ((originInRoot: Offset, centers: Map<Pair<Int,Int>, Offset>) -> Unit)? = null
 ) {
     var tableOriginInRoot by remember { mutableStateOf(Offset.Zero) }
     var centersLocal by remember { mutableStateOf<Map<Pair<Int, Int>, Offset>>(emptyMap()) }
@@ -136,7 +146,10 @@ fun TableStage(
                 .onGloballyPositioned { coords ->
                     tableOriginInRoot = coords.positionInRoot()
                 },
-            onBoxCenters = { centersLocal = it }
+            onBoxCenters = { centersLocal = it },
+            betFillOverride = { t, b ->
+                if (winner != null && winner.table == t && winner.box == b) winner.color else null
+            }
         )
     }
 }

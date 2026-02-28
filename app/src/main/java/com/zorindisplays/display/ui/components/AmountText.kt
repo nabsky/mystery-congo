@@ -98,7 +98,7 @@ data class MoneyFormat(
     val spaceBetweenCurrencyAndAmount: Boolean = true,
 )
 
-private fun formatMoneyFromMinor(
+internal fun formatMoneyFromMinor(
     minor: Long,
     format: MoneyFormat
 ): String {
