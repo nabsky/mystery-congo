@@ -22,6 +22,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nabsky.mystery.component.TableRowView
@@ -560,55 +564,51 @@ fun MainScreen() {
 
                          Spacer(Modifier.height(titleBottomGap))
 
-                         // Stable centering: render final amount invisibly to reserve width, then overlay animated amount.
+                         // Fix for centered "0": lock width by measuring final formatted string and using a fixed-width Box.
+                         val measurer = rememberTextMeasurer()
+                         val amountStyle = remember(amountFont) { TextStyle(fontFamily = MontserratBold, fontSize = amountFont) }
+                         val moneyFmt = remember {
+                             MoneyFormat(
+                                 currency = "",
+                                 currencyPosition = CurrencyPosition.Prefix,
+                                 thousandsSeparator = ' ',
+                                 decimalSeparator = ',',
+                                 fractionDigits = 0,
+                                 showCents = false
+                             )
+                         }
+                         val reserveWidthDp = remember(t.amountWon, amountStyle) {
+                             val reserveText = formatMoneyFromMinor(t.amountWon, moneyFmt)
+                             val res = measurer.measure(
+                                 text = AnnotatedString(reserveText),
+                                 style = amountStyle.copy(textAlign = TextAlign.Center),
+                                 maxLines = 1,
+                                 overflow = TextOverflow.Clip,
+                                 softWrap = false
+                             )
+                             with(density) { res.size.width.toDp() }
+                         }
+
+                         // Stable centering
                          Box(
                              modifier = Modifier
-                                   .clip(RoundedCornerShape(0.dp)),
-                               contentAlignment = Alignment.Center
-                          ) {
-                               // width reserver
-                               AmountText(
-                                   amountMinor = t.amountWon,
-                                  // alpha=0 may cause some impls to skip measuring; keep almost-transparent to reserve width safely
-                                  modifier = Modifier.graphicsLayer(alpha = 0.001f),
-                                   style = TextStyle(fontFamily = MontserratBold, fontSize = amountFont),
-                                   format = MoneyFormat(
-                                       currency = "",
-                                       currencyPosition = CurrencyPosition.Prefix,
-                                       thousandsSeparator = ' ',
-                                       decimalSeparator = ',',
-                                       fractionDigits = 0,
-                                       showCents = false
-                                   ),
-                                   fillColor = Color.White,
-                                   strokeColor = Color.Transparent,
-                                   strokeWidth = 0.dp,
-                                   textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                   verticalAlign = VerticalAlign.Center,
-                                   opticalCentering = true
-                               )
-
-                               // actual animated amount
-                               AmountText(
-                                   amountMinor = animatedAmount,
-                                   modifier = Modifier.graphicsLayer(alpha = amountAlpha.value),
-                                   style = TextStyle(fontFamily = MontserratBold, fontSize = amountFont),
-                                   format = MoneyFormat(
-                                       currency = "",
-                                       currencyPosition = CurrencyPosition.Prefix,
-                                       thousandsSeparator = ' ',
-                                       decimalSeparator = ',',
-                                       fractionDigits = 0,
-                                       showCents = false
-                                   ),
-                                   fillColor = Color.White,
-                                   strokeColor = Color.Transparent,
-                                   strokeWidth = 0.dp,
-                                   textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                   verticalAlign = VerticalAlign.Center,
-                                   opticalCentering = true
-                               )
-                           }
+                                 .width(reserveWidthDp)
+                                 .clip(RoundedCornerShape(0.dp)),
+                             contentAlignment = Alignment.Center
+                         ) {
+                             AmountText(
+                                 amountMinor = animatedAmount,
+                                 modifier = Modifier.graphicsLayer(alpha = amountAlpha.value),
+                                 style = amountStyle,
+                                 format = moneyFmt,
+                                 fillColor = Color.White,
+                                 strokeColor = Color.Transparent,
+                                 strokeWidth = 0.dp,
+                                 textAlign = TextAlign.Center,
+                                 verticalAlign = VerticalAlign.Center,
+                                 opticalCentering = true
+                             )
+                         }
 
                          Spacer(Modifier.height(amountBottomGap))
 
