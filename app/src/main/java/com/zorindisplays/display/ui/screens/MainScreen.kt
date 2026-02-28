@@ -1,14 +1,9 @@
 package com.zorindisplays.display.ui.screens
 
 import JackpotGemsOverlay
-import android.R.attr.scaleY
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,16 +12,16 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.isUnspecified
 import androidx.compose.ui.unit.sp
 import com.nabsky.mystery.component.TableRowView
 import com.nabsky.mystery.component.TableStatesLike
 import com.nabsky.mystery.component.TableViewColors
+import com.zorindisplays.display.R
 import com.zorindisplays.display.emulator.DemoEvent
 import com.zorindisplays.display.emulator.Emulator
 import com.zorindisplays.display.ui.components.*
@@ -35,12 +30,37 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.roundToInt
 
 private sealed interface WinPhase {
     data object None : WinPhase
-    data class Focus(val level: Int, val table: Int, val box: Int, val amountWon: Long) : WinPhase
-    data class Takeover(val level: Int, val table: Int, val box: Int, val amountWon: Long) : WinPhase
+
+    sealed interface WithWinData : WinPhase {
+        val level: Int
+        val table: Int
+        val box: Int
+        val amountWon: Long
+    }
+
+    data class Rain(
+        override val level: Int,
+        override val table: Int,
+        override val box: Int,
+        override val amountWon: Long,
+    ) : WithWinData
+
+    data class Focus(
+        override val level: Int,
+        override val table: Int,
+        override val box: Int,
+        override val amountWon: Long,
+    ) : WithWinData
+
+    data class Takeover(
+        override val level: Int,
+        override val table: Int,
+        override val box: Int,
+        override val amountWon: Long,
+    ) : WithWinData
 }
 
 @Composable
@@ -71,8 +91,10 @@ fun MainScreen() {
         val bpPx = with(density) { 14.dp.toPx() }
         val labelGapPx = with(density) { 10.dp.toPx() }
 
-        // (2) центр зоны джекпотов
+        // (2) центр зоны джекпотов (для позиционирования цифр/фокуса)
         val center2 = Offset(wPx * 0.5f, hPx * 0.38f)
+        // цель дождя делаем отдельно и чуть выше
+        val rainTarget = Offset(center2.x, hPx * 0.33f)
 
         val labelStyle = TextStyle(
             color = Color.White,
@@ -85,16 +107,20 @@ fun MainScreen() {
             emulator.events.collectLatest { e ->
                 when (e) {
                     is DemoEvent.JackpotWin -> {
-                        // пауза всего “живого” пока показываем сцену
                         emulator.setPaused(true)
 
-                        // Focus
+                        // (1) Rain: дождь сверху в центр зоны джекпотов (без takeover-фона)
+                        win = WinPhase.Rain(e.level, e.table, e.box, e.amountWon)
+                        rain = RainRequest(target = rainTarget)
+                        delay(1500)
+                        rain = null
+
+                        // (2) Focus: оставляем только нужный джекпот + (3) монеты в winner box
                         win = WinPhase.Focus(e.level, e.table, e.box, e.amountWon)
 
                         // ждём кадр чтобы посчитать координаты/спавнить монеты
                         delay(16)
 
-                        // координаты выигравшего бокса (root px)
                         val winnerCenterInRoot = computeBoxCenterInRootPx(
                             table = e.table,
                             box = e.box,
@@ -108,32 +134,21 @@ fun MainScreen() {
                             spacingToRadius = 0.30f
                         )
 
-                        // монеты из центра2 в winner box
                         winBurst = CoinBurst(
-                            sourcesInRoot = listOf(center2),
+                            sourcesInRoot = listOf(rainTarget),
                             targetInRoot = winnerCenterInRoot
                         )
 
-                        // держим focus (монеты + цифры в центр)
                         delay(1500)
 
-                        // Takeover
-                        // takeover start
+                        // (4) Takeover: фон + текст (без дождя)
                         win = WinPhase.Takeover(e.level, e.table, e.box, e.amountWon)
                         winBurst = null
 
-                        // дождь сверху в центр2 — только 1.5 сек
-                        rain = RainRequest(target = center2)
-                        delay(1500)
-                        rain = null
+                        // держим takeover 10 секунд
+                        delay(10_000)
 
-                        // держим takeover дальше (без дождя)
-                        delay(3800 - 1500)
-
-                        // сброс выигравшего джекпота
                         emulator.resetJackpot(e.level)
-
-                        // резкий возврат
                         win = WinPhase.None
                         emulator.setPaused(false)
                     }
@@ -146,6 +161,7 @@ fun MainScreen() {
         // ======== Base scene layers (не показываем, когда Takeover) ========
         val takeover = win is WinPhase.Takeover
         val focus = win is WinPhase.Focus
+        // val raining = win is WinPhase.Rain // не используется
 
         if (!takeover) {
             LuxuryBackground(modifier = Modifier.fillMaxSize())
@@ -180,9 +196,25 @@ fun MainScreen() {
             )
         }
 
+        // Дождь рисуем поверх base-сцены (но до takeover)
+        if (!takeover) {
+            // Цвет дождя должен быть всегда одинаковый
+            val rainColor = Color(0xFFFFE7A3)
+            JackpotRain(
+                request = rain,
+                modifier = Modifier.fillMaxSize(),
+                durationMs = 1500,
+                particles = 64,
+                spreadX = 260f,
+                startY = -160f,
+                color = rainColor
+            )
+        }
+
         // ======== Jackpot positioning/visibility during Focus ========
         val centerYFocus = with(density) { (center2.y).toDp() } // root px -> dp
         val winnerLevel = when (val w = win) {
+            is WinPhase.Rain -> w.level
             is WinPhase.Focus -> w.level
             is WinPhase.Takeover -> w.level
             else -> null
@@ -322,30 +354,36 @@ fun MainScreen() {
                 )
             } else {
                 // win mode: показываем только winner box цветом джекпота (и активные столы)
-                val w = win as WinPhase.Focus
-                val winColor = jackpotAccent(w.level)
-
-                val winnerOnlyStates = object : TableStatesLike {
-                    override fun isActive(table: Int): Boolean = demo.activeTables.contains(table)
-                    override fun hasBetOnBox(table: Int, box: Int): Boolean =
-                        (table == w.table && box == w.box)
+                val w: WinPhase.WithWinData? = when (val cur = win) {
+                    is WinPhase.Focus -> cur
+                    is WinPhase.Rain -> cur
+                    else -> null
                 }
+                if (w != null) {
+                    val winColor = jackpotAccent(w.level)
 
-                TableRowView(
-                    states = winnerOnlyStates,
-                    tableCount = 8,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth(),
-                    height = tableHeight,
-                    labelTextStyle = labelStyle,
-                    colors = TableViewColors(
-                        active = Color(0xFFFFFFFF),
-                        inactive = Color(0x66FFFFFF),
-                        bet = winColor,
-                        text = Color(0xFFFFFFFF),
+                    val winnerOnlyStates = object : TableStatesLike {
+                        override fun isActive(table: Int): Boolean = demo.activeTables.contains(table)
+                        override fun hasBetOnBox(table: Int, box: Int): Boolean =
+                            (table == w.table && box == w.box)
+                    }
+
+                    TableRowView(
+                        states = winnerOnlyStates,
+                        tableCount = 8,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth(),
+                        height = tableHeight,
+                        labelTextStyle = labelStyle,
+                        colors = TableViewColors(
+                            active = Color(0xFFFFFFFF),
+                            inactive = Color(0x66FFFFFF),
+                            bet = winColor,
+                            text = Color(0xFFFFFFFF),
+                        )
                     )
-                )
+                }
             }
         }
 
@@ -359,27 +397,29 @@ fun MainScreen() {
             Box(Modifier.fillMaxSize()) {
                 Canvas(Modifier.fillMaxSize()) { drawRect(bg) }
 
-                JackpotRain(
-                    request = rain,
-                    modifier = Modifier.fillMaxSize(),
-                    durationMs = 1500,
-                    particles = 64,
-                    spreadX = 260f,
-                    startY = -160f,
-                    color = when (t.level) {
-                        1 -> Color(0xFFFFD0D0) // ruby sparkle
-                        2 -> Color(0xFFFFF1B8) // gold sparkle
-                        else -> Color(0xFFCFFFF0) // jade sparkle
-                    }
-                )
-                // Титры
+                // Титры (по центру, как раньше)
                 Box(
                     Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    androidx.compose.foundation.layout.Column(
+                    Column(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        // Камень прямо над текстом
+                        val gemRes = when (t.level) {
+                            1 -> R.drawable.ruby_195x120
+                            2 -> R.drawable.gold_r_205x130
+                            else -> R.drawable.jade_r_116x140
+                        }
+                        Image(
+                            painter = painterResource(gemRes),
+                            contentDescription = null,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier
+                                .height(74.dp)
+                                .padding(bottom = 12.dp)
+                        )
+
                         BasicText(
                             text = title,
                             style = TextStyle(
@@ -390,9 +430,8 @@ fun MainScreen() {
                             )
                         )
 
-                        androidx.compose.foundation.layout.Spacer(Modifier.height(18.dp))
+                        Spacer(Modifier.height(18.dp))
 
-                        // Сумму рисуем тем же AmountText (чтобы формат был точь-в-точь)
                         AmountText(
                             amountMinor = t.amountWon,
                             modifier = Modifier,
@@ -416,7 +455,7 @@ fun MainScreen() {
                             opticalCentering = true
                         )
 
-                        androidx.compose.foundation.layout.Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(16.dp))
 
                         BasicText(
                             text = subtitle,
@@ -426,6 +465,49 @@ fun MainScreen() {
                                 fontSize = 20.sp,
                                 letterSpacing = 1.6.sp,
                             )
+                        )
+                    }
+                }
+
+                // Низ: только один выигравший стол по центру, размер как в обычном режиме
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(bottom = 14.dp),
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        // Номер выигравшего стола
+                        BasicText(
+                            text = t.table.toString(),
+                            style = labelStyle
+                        )
+
+                        Spacer(Modifier.height(10.dp))
+
+                        val winnerTableStates = remember(t.box) {
+                            object : TableStatesLike {
+                                override fun isActive(table: Int): Boolean = true
+                                override fun hasBetOnBox(table: Int, box: Int): Boolean = (box == t.box)
+                            }
+                        }
+
+                        TableRowView(
+                            states = winnerTableStates,
+                            tableCount = 1,
+                            modifier = Modifier.fillMaxWidth(),
+                            height = tableHeight,
+                            // лейбл внутри TableRowView отключаем, т.к. он всегда "1"
+                            labelTextStyle = labelStyle.copy(fontSize = 0.sp),
+                            showDotsBetweenTables = false,
+                            colors = TableViewColors(
+                                active = Color.White,
+                                inactive = Color.White.copy(alpha = 0.35f),
+                                bet = Color.White,
+                                text = Color.White,
+                            ),
+                            betFillOverride = { _, box -> if (box == t.box) Color.White else null },
                         )
                     }
                 }
@@ -462,12 +544,6 @@ private fun Modifier.graphicsLayerAlphaScale(alpha: Float, scale: Float): Modifi
     }
 
 
-private fun estimateLabelHeightPx(labelStyle: TextStyle): Float {
-    // rough-but-stable: 1.15 * fontSize
-    val fs = labelStyle.fontSize
-    val px = if (fs.isUnspecified) 32f else fs.value // value тут “sp”, но мы в вызове передадим уже px
-    return px * 1.15f
-}
 
 /**
  * Возвращает центр бокса в ROOT px.
@@ -502,7 +578,7 @@ private fun computeBoxCenterInRootPx(
     val maxTableH = (tableHeightPx - bp - labelGapAboveTablePx - labelH).coerceAtLeast(0f)
 
     val rByHeight = if (tableFactor > 0f) maxTableH / tableFactor else 0f
-    val rByWidth = if (tableFactor > 0f && n > 0) availableW / (n * tableFactor) else 0f
+    val rByWidth = if (tableFactor > 0f) availableW / (n * tableFactor) else 0f
 
     val r = max(0f, min(rByHeight, rByWidth))
     val s = r * spacingToRadius
