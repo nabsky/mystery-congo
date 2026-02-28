@@ -1,12 +1,11 @@
 package com.zorindisplays.display.ui.screens
 
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Box
+import JackpotGemsOverlay
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -18,25 +17,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nabsky.mystery.component.TableRowView
 import com.nabsky.mystery.component.TableStatesLike
-import com.zorindisplays.display.R
-import com.zorindisplays.display.ui.components.JackpotAmount
+import com.zorindisplays.display.ui.components.BreathingVignette
 import com.zorindisplays.display.ui.components.CurrencyPosition
+import com.zorindisplays.display.ui.components.GemSpotlightsOverlay
+import com.zorindisplays.display.ui.components.JackpotAmount
+import com.zorindisplays.display.ui.components.JackpotSpotlight
 import com.zorindisplays.display.ui.components.LuxuryBackground
 import com.zorindisplays.display.ui.components.MoneyFormat
 import com.zorindisplays.display.ui.components.TextShadowSpec
-import com.zorindisplays.display.ui.components.VerticalAlign
 import com.zorindisplays.display.ui.theme.MontserratBold
 import kotlinx.coroutines.delay
-import kotlin.math.min
 import kotlin.random.Random
 
 @Composable
@@ -100,12 +95,32 @@ fun MainScreen() {
 
         LuxuryBackground(modifier = Modifier.fillMaxSize())
 
+        GemSpotlightsOverlay(modifier = Modifier.fillMaxSize())
+
+        BreathingVignette(
+            modifier = Modifier.fillMaxSize(),
+            strength = 0.22f,
+            periodMs = 9000
+        )
+
         // ✅ Камни — между фоном и цифрами
         JackpotGemsOverlay(modifier = Modifier.fillMaxSize())
 
+        JackpotSpotlight(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(280.dp)
+                .offset(y = h * 0.10f)
+                .blur(24.dp),
+            color = Color(0xFFFF2A2A),
+            alpha = 0.18f
+        )
+
         JackpotAmount(
             amountMinor = j1,
-            modifier = Modifier.fillMaxWidth().offset(y = h * 0.18f),
+            modifier = Modifier
+                .fillMaxWidth()
+                .offset(y = h * 0.18f),
             style = TextStyle(
                 fontFamily = MontserratBold,
                 fontSize = 140.sp,
@@ -129,7 +144,9 @@ fun MainScreen() {
 
         JackpotAmount(
             amountMinor = j2,
-            modifier = Modifier.fillMaxWidth().offset(y = h * 0.38f),
+            modifier = Modifier
+                .fillMaxWidth()
+                .offset(y = h * 0.38f),
             style = TextStyle(
                 fontFamily = MontserratBold,
                 fontSize = 120.sp,
@@ -153,7 +170,9 @@ fun MainScreen() {
 
         JackpotAmount(
             amountMinor = j3,
-            modifier = Modifier.fillMaxWidth() .offset(y = h * 0.58f),
+            modifier = Modifier
+                .fillMaxWidth()
+                .offset(y = h * 0.58f),
             style = TextStyle(
                 fontFamily = MontserratBold,
                 fontSize = 90.sp,
@@ -188,97 +207,5 @@ fun MainScreen() {
             ),
             height = 240.dp,
         )
-    }
-}
-
-@Composable
-private fun JackpotGemsOverlay(
-    modifier: Modifier = Modifier,
-) {
-    val ruby = painterResource(R.drawable.ruby_195x120)
-    val goldR = painterResource(R.drawable.gold_r_205x130)
-    val jadeR = painterResource(R.drawable.jade_r_116x140)
-
-    BoxWithConstraints(modifier = modifier) {
-        // Ruby:
-        PositionedLayer(
-            anchor = Offset(0.79f, 0.15f),
-            sizeFrac = 0.22f,
-            rotationDeg = 8f,
-            alpha = 0.92f,
-            blurDp = 0f,
-            flipX = false,
-        ) { m ->
-            Image(
-                painter = ruby,
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
-                modifier = m,
-            )
-        }
-
-        // Gold
-        PositionedLayer(
-            anchor = Offset(0.24f, 0.42f),
-            sizeFrac = 0.21f,
-            alpha = 0.85f,
-            blurDp = 1.5f,
-            rotationDeg = 8f,
-        ) { m ->
-            Image(painter = goldR, contentDescription = null, contentScale = ContentScale.Fit, modifier = m)
-        }
-
-        // Jade
-        PositionedLayer(
-            anchor = Offset(0.74f, 0.66f),
-            sizeFrac = 0.16f,
-            rotationDeg = -10f,
-            alpha = 0.74f,
-            blurDp = 0f,
-        ) { m ->
-            Image(painter = jadeR, contentDescription = null, contentScale = ContentScale.Fit, modifier = m)
-        }
-    }
-}
-
-@Composable
-private fun PositionedLayer(
-    anchor: Offset,
-    sizeFrac: Float,
-    rotationDeg: Float,
-    alpha: Float,
-    flipX: Boolean = false,
-    blurDp: Float = 0f,
-    content: @Composable (Modifier) -> Unit,
-) {
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        val w = constraints.maxWidth.toFloat()
-        val h = constraints.maxHeight.toFloat()
-        val m = min(w, h)
-
-        val sizePx = m * sizeFrac
-        val xPx = w * anchor.x - sizePx / 2f
-        val yPx = h * anchor.y - sizePx / 2f
-
-        val density = androidx.compose.ui.platform.LocalDensity.current
-        val sizeDp = with(density) { sizePx.toDp() }
-        val xDp = with(density) { xPx.toDp() }
-        val yDp = with(density) { yPx.toDp() }
-
-        val base = Modifier
-            .offset(xDp, yDp)
-            .size(sizeDp)
-            .graphicsLayer {
-                rotationZ = rotationDeg
-                this.alpha = alpha
-                if (flipX) scaleX = -1f
-            }
-            .then(
-                if (blurDp > 0f)
-                    Modifier.blur(blurDp.dp)
-                else Modifier
-            )
-
-        content(base.fillMaxSize())
     }
 }
