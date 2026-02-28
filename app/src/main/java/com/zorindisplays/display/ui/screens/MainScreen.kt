@@ -83,6 +83,7 @@ fun MainScreen() {
     val demo by emulator.state.collectAsState()
 
     var win by remember { mutableStateOf<WinPhase>(WinPhase.None) }
+    var payoutSelectedBox by remember { mutableStateOf<Pair<Int, Int>?>(null) } // table to box
 
     // burst монет из центра джекпотов -> в выигравший бокс
     var winBurst by remember { mutableStateOf<CoinBurst?>(null) }
@@ -118,18 +119,17 @@ fun MainScreen() {
             emulator.events.collectLatest { e ->
                 when (e) {
                     is DemoEvent.JackpotWin -> {
+                        payoutSelectedBox = null
                         emulator.setPaused(true)
 
-                        // (1) Rain: дождь сверху в центр зоны джекпотов (без takeover-фона)
+                        // (1) Rain
                         win = WinPhase.Rain(e.level, e.table, e.box, e.amountWon)
                         rain = RainRequest(target = rainTarget)
                         delay(1500)
                         rain = null
 
-                        // (2) Focus: оставляем только нужный джекпот + (3) монеты в winner box
+                        // (2) Focus
                         win = WinPhase.Focus(e.level, e.table, e.box, e.amountWon)
-
-                        // ждём кадр чтобы посчитать координаты/спавнить монеты
                         delay(16)
 
                         val winnerCenterInRoot = computeBoxCenterInRootPx(
@@ -152,16 +152,27 @@ fun MainScreen() {
 
                         delay(1500)
 
-                        // (4) Takeover: фон + текст (без дождя)
+                        // (4) Takeover
                         win = WinPhase.Takeover(e.level, e.table, e.box, e.amountWon)
                         winBurst = null
+                        // Дальше ждём подтверждения дилера через события (см. ниже)
+                    }
 
-                        // держим takeover 10 секунд
-                        delay(10_000)
+                    is DemoEvent.DealerPayoutBoxSelected -> {
+                        val cur = win
+                        if (cur is WinPhase.Takeover && cur.table == e.table) {
+                            payoutSelectedBox = e.table to e.box
+                        }
+                    }
 
-                        emulator.resetJackpot(e.level)
-                        win = WinPhase.None
-                        emulator.setPaused(false)
+                    is DemoEvent.DealerPayoutConfirmed -> {
+                        val cur = win
+                        if (cur is WinPhase.Takeover && cur.table == e.table) {
+                            emulator.resetJackpot(cur.level)
+                            payoutSelectedBox = null
+                            win = WinPhase.None
+                            emulator.setPaused(false)
+                        }
                     }
                 }
             }
@@ -641,10 +652,15 @@ fun MainScreen() {
                         BasicText(text = t.table.toString(), style = labelStyle)
                         Spacer(Modifier.height(10.dp))
 
-                        val winnerTableStates = remember(t.box) {
+                        val selected = payoutSelectedBox
+                        val winnerTableStates = remember(t.box, selected) {
                             object : TableStatesLike {
                                 override fun isActive(table: Int): Boolean = true
-                                override fun hasBetOnBox(table: Int, box: Int): Boolean = (box == t.box)
+                                override fun hasBetOnBox(table: Int, box: Int): Boolean {
+                                    // если дилер выбрал бокс на выплату: делаем его полым (не "bet")
+                                    if (selected != null && box == selected.second) return false
+                                    return (box == t.box)
+                                }
                             }
                         }
 
@@ -666,7 +682,12 @@ fun MainScreen() {
                                 bet = Color.White,
                                 text = Color.White,
                             ),
-                            betFillOverride = { _, box -> if (box == t.box) Color.White else null },
+                            betFillOverride = { _, box ->
+                                // если дилер выбрал этот бокс – делаем его полым
+                                val sel = selected
+                                if (sel != null && box == sel.second) null
+                                else if (box == t.box) Color.White else null
+                            },
                         )
                     }
                 }

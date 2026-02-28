@@ -27,6 +27,18 @@ sealed interface DemoEvent {
         val box: Int,        // 1..9
         val amountWon: Long  // snapshot суммы на момент выигрыша
     ) : DemoEvent
+
+    // Dealer подтверждает выплату: сначала выбирает номер бокса (делаем кружок полым)
+    data class DealerPayoutBoxSelected(
+        val table: Int,
+        val box: Int,
+    ) : DemoEvent
+
+    // Dealer жмёт Enter/Confirm: закрываем takeover
+    data class DealerPayoutConfirmed(
+        val table: Int,
+        val box: Int,
+    ) : DemoEvent
 }
 
 private const val START_J1: Long = 10_000_000
@@ -120,6 +132,20 @@ class Emulator(
 
     private suspend fun emitWin(level: Int, table: Int, box: Int, amountWon: Long) {
         _events.emit(DemoEvent.JackpotWin(level, table, box, amountWon))
+
+        // Эмуляция дилера:
+        // 1) через 10с выбирает бокс (делаем его полым),
+        // 2) ещё через 1с жмёт Enter/Confirm (закрываем takeover).
+        scope.launch {
+            delay(10_000L)
+            if (paused) {
+                _events.emit(DemoEvent.DealerPayoutBoxSelected(table = table, box = box))
+                delay(1_000L)
+                if (paused) {
+                    _events.emit(DemoEvent.DealerPayoutConfirmed(table = table, box = box))
+                }
+            }
+        }
     }
 
     // ---------- loops ----------
