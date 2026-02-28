@@ -19,9 +19,9 @@ fun JackpotGemsOverlay(
     val jadeR = painterResource(R.drawable.jade_r_116x140)
 
     val density = LocalDensity.current
-    val ampPxRuby = with(density) { 6.0.dp.toPx() }
-    val ampPxGold = with(density) { 5.0.dp.toPx() }
-    val ampPxJade = with(density) { 4.0.dp.toPx() }
+    val ampPxRuby = with(density) { 7.0.dp.toPx() }
+    val ampPxGold = with(density) { 6.0.dp.toPx() }
+    val ampPxJade = with(density) { 5.0.dp.toPx() }
 
     BoxWithConstraints(modifier = modifier) {
 
@@ -37,7 +37,7 @@ fun JackpotGemsOverlay(
                 painter = ruby,
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
-                modifier = m.gemParallax(seed = 11, ampPx = ampPxRuby, periodMs = 9000)
+                modifier = m.gemParallax(seed = 11, ampPx = ampPxRuby, rotationAmpDeg = 0.45f, periodMs = 9000)
             )
         }
 
