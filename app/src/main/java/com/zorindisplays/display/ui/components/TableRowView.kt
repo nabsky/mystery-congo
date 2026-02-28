@@ -67,6 +67,8 @@ fun TableRowView(
     // NEW: центры боксов в координатах Canvas (локальные для TableRowView)
     onBoxCenters: ((Map<Pair<Int, Int>, Offset>) -> Unit)? = null,
     betFillOverride: ((table: Int, box: Int) -> Color?)? = null,
+    // NEW: override для цвета обводки (кольца) у активных боксов без ставки
+    ringStrokeOverride: ((table: Int, box: Int) -> Color?)? = null,
 ) {
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
@@ -143,7 +145,8 @@ fun TableRowView(
                         val fill = betFillOverride?.invoke(i + 1, boxMap[j]) ?: colors.bet
                         drawCircle(fill, r, c, style = Fill)
                     } else {
-                        drawCircle(colors.active, r, c, style = Stroke(width = border))
+                        val strokeColor = ringStrokeOverride?.invoke(i + 1, boxMap[j]) ?: colors.active
+                        drawCircle(strokeColor, r, c, style = Stroke(width = border))
                     }
                 } else {
                     drawCircle(colors.inactive, r, c, style = Stroke(width = border))

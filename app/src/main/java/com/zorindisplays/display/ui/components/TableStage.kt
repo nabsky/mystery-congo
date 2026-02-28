@@ -7,6 +7,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.text.TextStyle
@@ -57,6 +58,40 @@ fun TableStage(
     // confirm-flash overlay
     var flashBets by remember { mutableStateOf<Map<Int, Set<Int>>>(emptyMap()) }
     var flashToken by remember { mutableStateOf(0L) }
+
+    // время последнего confirm для каждого стола (ms). Если null -> эффекта нет.
+    var lastConfirmedAtMs by remember { mutableStateOf<Map<Pair<Int, Int>, Long>>(emptyMap()) }
+
+    // тикер времени (обновляем редко, чтобы не грузить UI)
+    var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            nowMs = System.currentTimeMillis()
+            delay(500L)
+        }
+    }
+
+    // при preview на столе: сбрасываем эффект ("белеет сразу")
+    LaunchedEffect(litBets) {
+        val activePreviewTables = litBets.filterValues { it.isNotEmpty() }.keys
+        if (activePreviewTables.isNotEmpty()) {
+            val m = lastConfirmedAtMs.toMutableMap()
+            var changed = false
+            for (t in activePreviewTables) {
+                val removedAny = m.keys.removeAll { (table, _) -> table == t }
+                if (removedAny) changed = true
+            }
+            if (changed) lastConfirmedAtMs = m
+        }
+    }
+
+    // авто-очистка записей старше 60 секунд
+    LaunchedEffect(nowMs) {
+        if (lastConfirmedAtMs.isEmpty()) return@LaunchedEffect
+        val cutoff = nowMs - 60_000L
+        val filtered = lastConfirmedAtMs.filterValues { it >= cutoff }
+        if (filtered.size != lastConfirmedAtMs.size) lastConfirmedAtMs = filtered
+    }
 
     // wrapper states: подсветка = preview + flash
     val mergedStates = remember(states, litBets, flashBets) {
@@ -117,6 +152,16 @@ fun TableStage(
                     delay(confirmFlashMs)
                     if (flashToken == token) flashBets = emptyMap()
                 }
+
+                // 3) старт "пожелтения" кольца для конкретных подтвержденных боксов
+                val stamp = System.currentTimeMillis()
+                val m = lastConfirmedAtMs.toMutableMap()
+                for (t in confirmedTables) {
+                    for (b in old[t].orEmpty()) {
+                        m[t to b] = stamp
+                    }
+                }
+                lastConfirmedAtMs = m
             }
         }
 
@@ -149,6 +194,17 @@ fun TableStage(
             onBoxCenters = { centersLocal = it },
             betFillOverride = { t, b ->
                 if (winner != null && winner.table == t && winner.box == b) winner.color else null
+            },
+            ringStrokeOverride = { t, b ->
+                // если сейчас есть preview на этом столе — эффект не нужен (кольца белые)
+                if (litBets[t].orEmpty().isNotEmpty()) return@TableRowView null
+
+                val confirmedAt = lastConfirmedAtMs[t to b] ?: return@TableRowView null
+
+                val dt = (nowMs - confirmedAt).coerceAtLeast(0L)
+                val progress = (dt / 60_000f).coerceIn(0f, 1f)
+                val yellow = Color(0xFFFFD54F)
+                lerp(yellow, Color.White, progress)
             }
         )
     }
