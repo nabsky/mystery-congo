@@ -203,6 +203,24 @@ fun MainScreen() {
 
         if (!takeover) {
             LuxuryBackground(modifier = Modifier.fillMaxSize())
+
+            // Логотип Mystery Jackpot по центру сверху
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 30.dp), // Можно скорректировать отступ
+                contentAlignment = Alignment.TopCenter
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.mystery_jackpot_logo_170x230),
+                    contentDescription = "Mystery Jackpot Logo",
+                    modifier = Modifier
+                        .width(230.dp)
+                        .height(170.dp),
+                    contentScale = ContentScale.Fit
+                )
+            }
+
             GemSpotlightsOverlay(modifier = Modifier.fillMaxSize())
 
             BreathingVignette(
