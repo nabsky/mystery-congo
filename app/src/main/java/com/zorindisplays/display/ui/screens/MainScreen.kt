@@ -89,6 +89,9 @@ fun MainScreen() {
     var winBurst by remember { mutableStateOf<CoinBurst?>(null) }
     var rain by remember { mutableStateOf<RainRequest?>(null) }
 
+    // интрига: winner box подсвечиваем только ПОСЛЕ того, как монетки "втекли" в него
+    var revealWinnerBox by remember { mutableStateOf(false) }
+
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
 
         val density = LocalDensity.current
@@ -122,7 +125,10 @@ fun MainScreen() {
                         payoutSelectedBox = null
                         emulator.setPaused(true)
 
-                        // (1) Rain
+                        // (0) reset reveal
+                        revealWinnerBox = false
+
+                        // (1) Rain (без подсветки winner box)
                         win = WinPhase.Rain(e.level, e.table, e.box, e.amountWon)
                         rain = RainRequest(target = rainTarget)
                         delay(1500)
@@ -145,16 +151,23 @@ fun MainScreen() {
                             spacingToRadius = 0.30f
                         )
 
+                        // (3) Coin burst (в это время winner box не подсвечиваем)
+                        val coinBurstDurationMs = 1100L // соответствует CoinsLayer.durationMs по умолчанию
                         winBurst = CoinBurst(
                             sourcesInRoot = listOf(rainTarget),
                             targetInRoot = winnerCenterInRoot
                         )
 
-                        delay(1500)
-
-                        // (4) Takeover
-                        win = WinPhase.Takeover(e.level, e.table, e.box, e.amountWon)
+                        // ждём, пока основная масса монет долетит
+                        delay(coinBurstDurationMs + 220L)
                         winBurst = null
+
+                        // (4) Reveal winner box: теперь подсвечиваем, даём зрителю осознать
+                        revealWinnerBox = true
+                        delay(850)
+
+                        // (5) Takeover
+                        win = WinPhase.Takeover(e.level, e.table, e.box, e.amountWon)
                         // Дальше ждём подтверждения дилера через события (см. ниже)
                     }
 
@@ -171,6 +184,7 @@ fun MainScreen() {
                             emulator.resetJackpot(cur.level)
                             payoutSelectedBox = null
                             win = WinPhase.None
+                            revealWinnerBox = false
                             emulator.setPaused(false)
                         }
                     }
@@ -388,8 +402,10 @@ fun MainScreen() {
 
                     val winnerOnlyStates = object : TableStatesLike {
                         override fun isActive(table: Int): Boolean = demo.activeTables.contains(table)
-                        override fun hasBetOnBox(table: Int, box: Int): Boolean =
-                            (table == w.table && box == w.box)
+                        override fun hasBetOnBox(table: Int, box: Int): Boolean {
+                            if (!revealWinnerBox) return false
+                            return (table == w.table && box == w.box)
+                        }
                     }
 
                     TableRowView(
