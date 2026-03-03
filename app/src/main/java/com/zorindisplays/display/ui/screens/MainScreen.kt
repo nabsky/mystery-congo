@@ -237,7 +237,21 @@ fun MainScreen() {
                 fontFamily = MontserratBold
             )
 
-            JackpotGemsOverlay(modifier = Modifier.fillMaxSize())
+            JackpotGemsOverlay(
+                modifier = Modifier.fillMaxSize(),
+                winnerLevel = when (win) {
+                    is WinPhase.Focus -> (win as WinPhase.Focus).level
+                    is WinPhase.Takeover -> (win as WinPhase.Takeover).level
+                    is WinPhase.Rain -> (win as WinPhase.Rain).level
+                    else -> null
+                },
+                winPhase = when (win) {
+                    is WinPhase.Focus -> "Focus"
+                    is WinPhase.Takeover -> "Takeover"
+                    is WinPhase.Rain -> "Rain"
+                    else -> "None"
+                }
+            )
 
             // spotlight (можно усилить на focus)
             val spotAlpha = if (focus && (win as WinPhase.Focus).level == 1) 0.30f else 0.18f

@@ -1,36 +1,61 @@
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.zorindisplays.display.R
+import androidx.compose.ui.geometry.Offset
 import com.zorindisplays.display.ui.components.gemParallax
 
 @Composable
 fun JackpotGemsOverlay(
     modifier: Modifier = Modifier,
+    winnerLevel: Int? = null, // 1=ruby, 2=gold, 3=jade
+    winPhase: String = "None" // "None", "Rain", "Focus", "Takeover"
 ) {
     val ruby = painterResource(R.drawable.ruby_195x120)
     val goldR = painterResource(R.drawable.gold_r_205x130)
     val jadeR = painterResource(R.drawable.jade_r_116x140)
 
-    val density = LocalDensity.current
+    val density = androidx.compose.ui.platform.LocalDensity.current
     val ampPxRuby = with(density) { 7.0.dp.toPx() }
     val ampPxGold = with(density) { 6.0.dp.toPx() }
     val ampPxJade = with(density) { 5.0.dp.toPx() }
 
     BoxWithConstraints(modifier = modifier) {
+        val centerAnchor = Offset(0.5f, 0.38f)
+        val winnerAnchorBottom = Offset(0.5f, 0.58f)
+        val centerRotation = 0f
+        val centerBlur = 0f
+        val offscreenAnchor = Offset(-1f, -1f)
+        val offscreenAlpha = 0f
 
+        // Ruby
+        val rubyParams: Triple<Offset, Float, Float> = when {
+            winPhase == "None" -> Triple(Offset(0.79f, 0.15f), 8f, 0f)
+            (winPhase == "Rain" || winPhase == "Focus" || winPhase == "Takeover") && winnerLevel == 1 -> Triple(winnerAnchorBottom, centerRotation, centerBlur)
+            else -> Triple(offscreenAnchor, centerRotation, centerBlur)
+        }
+        val rubyAlpha = when {
+            winPhase == "None" || ((winPhase == "Rain" || winPhase == "Focus" || winPhase == "Takeover") && winnerLevel == 1) -> 0.92f
+            else -> offscreenAlpha
+        }
         PositionedLayer(
-            anchor = Offset(0.79f, 0.15f),
+            anchor = rubyParams.first,
             sizeFrac = 0.22f,
-            rotationDeg = 8f,
-            alpha = 0.92f,
-            blurDp = 0f,
+            rotationDeg = rubyParams.second,
+            alpha = rubyAlpha,
+            blurDp = rubyParams.third,
             flipX = false,
         ) { m ->
             Image(
@@ -41,12 +66,22 @@ fun JackpotGemsOverlay(
             )
         }
 
+        // Gold
+        val goldParams: Triple<Offset, Float, Float> = when {
+            winPhase == "None" -> Triple(Offset(0.24f, 0.42f), 8f, 1.5f)
+            (winPhase == "Rain" || winPhase == "Focus" || winPhase == "Takeover") && winnerLevel == 2 -> Triple(winnerAnchorBottom, centerRotation, centerBlur)
+            else -> Triple(offscreenAnchor, centerRotation, centerBlur)
+        }
+        val goldAlpha = when {
+            winPhase == "None" || ((winPhase == "Rain" || winPhase == "Focus" || winPhase == "Takeover") && winnerLevel == 2) -> 0.85f
+            else -> offscreenAlpha
+        }
         PositionedLayer(
-            anchor = Offset(0.24f, 0.42f),
+            anchor = goldParams.first,
             sizeFrac = 0.21f,
-            alpha = 0.85f,
-            blurDp = 1.5f,
-            rotationDeg = 8f,
+            alpha = goldAlpha,
+            blurDp = goldParams.third,
+            rotationDeg = goldParams.second,
         ) { m ->
             Image(
                 painter = goldR,
@@ -56,12 +91,22 @@ fun JackpotGemsOverlay(
             )
         }
 
+        // Jade
+        val jadeParams: Triple<Offset, Float, Float> = when {
+            winPhase == "None" -> Triple(Offset(0.74f, 0.66f), -10f, 0f)
+            (winPhase == "Rain" || winPhase == "Focus" || winPhase == "Takeover") && winnerLevel == 3 -> Triple(winnerAnchorBottom, centerRotation, centerBlur)
+            else -> Triple(offscreenAnchor, centerRotation, centerBlur)
+        }
+        val jadeAlpha = when {
+            winPhase == "None" || ((winPhase == "Rain" || winPhase == "Focus" || winPhase == "Takeover") && winnerLevel == 3) -> 0.74f
+            else -> offscreenAlpha
+        }
         PositionedLayer(
-            anchor = Offset(0.74f, 0.66f),
+            anchor = jadeParams.first,
             sizeFrac = 0.16f,
-            rotationDeg = -10f,
-            alpha = 0.74f,
-            blurDp = 0f,
+            rotationDeg = jadeParams.second,
+            alpha = jadeAlpha,
+            blurDp = jadeParams.third,
         ) { m ->
             Image(
                 painter = jadeR,
