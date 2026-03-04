@@ -35,6 +35,7 @@ import com.zorindisplays.display.R
 import com.zorindisplays.display.emulator.DemoEvent
 import com.zorindisplays.display.emulator.Emulator
 import com.zorindisplays.display.ui.components.*
+import com.zorindisplays.display.ui.theme.ChangoRegular
 import com.zorindisplays.display.ui.theme.MontserratBold
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -333,7 +334,7 @@ fun MainScreen() {
                     .fillMaxWidth()
                     .offset(y = yFor(1))
                     .graphicsLayerAlphaScale(alphaFor(1), scaleFor(1)),
-                style = TextStyle(fontFamily = MontserratBold, fontSize = 140.sp),
+                style = TextStyle(fontFamily = ChangoRegular, fontSize = 140.sp),
                 format = MoneyFormat(
                     currency = "",
                     currencyPosition = CurrencyPosition.Prefix,
@@ -355,7 +356,7 @@ fun MainScreen() {
                     .fillMaxWidth()
                     .offset(y = yFor(2))
                     .graphicsLayerAlphaScale(alphaFor(2), scaleFor(2)),
-                style = TextStyle(fontFamily = MontserratBold, fontSize = 120.sp),
+                style = TextStyle(fontFamily = ChangoRegular, fontSize = 120.sp),
                 format = MoneyFormat(
                     currency = "",
                     currencyPosition = CurrencyPosition.Prefix,
@@ -377,7 +378,7 @@ fun MainScreen() {
                     .fillMaxWidth()
                     .offset(y = yFor(3))
                     .graphicsLayerAlphaScale(alphaFor(3), scaleFor(3)),
-                style = TextStyle(fontFamily = MontserratBold, fontSize = 90.sp),
+                style = TextStyle(fontFamily = ChangoRegular, fontSize = 90.sp),
                 format = MoneyFormat(
                     currency = "",
                     currencyPosition = CurrencyPosition.Prefix,
@@ -625,7 +626,7 @@ fun MainScreen() {
 
                          // Fix for centered "0": lock width by measuring final formatted string and using a fixed-width Box.
                          val measurer = rememberTextMeasurer()
-                         val amountStyle = remember(amountFont) { TextStyle(fontFamily = MontserratBold, fontSize = amountFont) }
+                         val amountStyle = remember(amountFont) { TextStyle(fontFamily = ChangoRegular, fontSize = amountFont) }
                          val moneyFmt = remember {
                              MoneyFormat(
                                  currency = "",

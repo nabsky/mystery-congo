@@ -15,9 +15,16 @@ val PrimaryTextColor = Color.White
 val MontserratBold = FontFamily(
     Font(R.font.montserrat_bold)
 )
+
 val MontserratBlackItalic = FontFamily(
     Font(R.font.montserrat_black_italic)
 )
+
+val ChangoRegular = FontFamily(
+    Font(R.font.chango_regular)
+)
+
+
 
 // Text styles
 val DefaultTextStyle = TextStyle(
