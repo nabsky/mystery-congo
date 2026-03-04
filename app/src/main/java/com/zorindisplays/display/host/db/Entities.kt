@@ -5,7 +5,7 @@ import androidx.room.PrimaryKey
 import kotlinx.serialization.Serializable
 
 @Entity(tableName = "event_log")
-data class EventRow(
+data class EventLogRow(
     @PrimaryKey(autoGenerate = true) val eventId: Long = 0,
     val ts: Long,
     val type: String,
@@ -26,4 +26,3 @@ data class GlobalStateRow(
     val lastEventId: Long,
     val updatedAt: Long
 )
-

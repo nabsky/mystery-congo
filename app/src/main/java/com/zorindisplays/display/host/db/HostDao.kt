@@ -5,10 +5,10 @@ import androidx.room.*
 @Dao
 interface HostDao {
     @Insert
-    suspend fun appendEvent(event: EventRow): Long
+    suspend fun appendEvent(event: EventLogRow): Long
 
-    @Query("SELECT * FROM event_log WHERE eventId > :eventId ORDER BY eventId ASC LIMIT :limit")
-    suspend fun getEventsAfter(eventId: Long, limit: Int = 500): List<EventRow>
+    @Query("SELECT * FROM event_log WHERE eventId > :eventId ORDER BY eventId ASC")
+    suspend fun getEventsAfter(eventId: Long): List<EventLogRow>
 
     @Query("SELECT * FROM jackpot_state")
     suspend fun getJackpotState(): List<JackpotStateRow>
@@ -21,5 +21,7 @@ interface HostDao {
 
     @Query("UPDATE global_state SET stateVersion = stateVersion + 1, lastEventId = :newLastEventId, updatedAt = :updatedAt WHERE id = 1")
     suspend fun bumpStateVersionAndLastEventId(newLastEventId: Long, updatedAt: Long)
-}
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertGlobalState(row: GlobalStateRow): Long
+}
