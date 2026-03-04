@@ -654,7 +654,7 @@ fun MainScreen() {
                              modifier = Modifier
                                 // Visual compensation: some fonts/outlined text have asymmetric glyph bounds ("0" looks shifted right).
                                 // Shift amount block slightly left to align with the rest of the centered layout.
-                                .offset(x = with(density) { (-20f).toDp() })
+                                .offset(x = with(density) { (-30f).toDp() })
                                  .width(reserveWidthDp)
                                  .clip(RoundedCornerShape(0.dp)),
                              contentAlignment = Alignment.Center
