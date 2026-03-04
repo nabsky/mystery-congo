@@ -45,6 +45,8 @@ dependencies {
     implementation(libs.activity.compose)
     implementation(libs.lottie.compose)
     implementation(libs.emoji2)
+    implementation(libs.androidx.compose.material3)
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
     debugImplementation(libs.ui.tooling)
 }
 

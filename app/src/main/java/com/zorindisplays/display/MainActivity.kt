@@ -8,7 +8,7 @@ import android.view.WindowInsetsController
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.core.view.WindowCompat
-import com.zorindisplays.display.ui.RegistrationGate
+import com.zorindisplays.display.ui.RoleRouter
 
 
 class MainActivity : ComponentActivity() {
@@ -19,9 +19,7 @@ class MainActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         setContent {
-            RegistrationGate {
-                App()
-            }
+            RoleRouter()
         }
 
         hideSystemUI()
