@@ -33,6 +33,7 @@ import com.nabsky.mystery.component.TableStatesLike
 import com.nabsky.mystery.component.TableViewColors
 import com.zorindisplays.display.R
 import com.zorindisplays.display.emulator.DemoEvent
+import com.zorindisplays.display.emulator.DemoState
 import com.zorindisplays.display.emulator.Emulator
 import com.zorindisplays.display.ui.components.*
 import com.zorindisplays.display.ui.theme.ChangoRegular
@@ -76,12 +77,15 @@ private sealed interface WinPhase {
 }
 
 @Composable
-fun MainScreen() {
+fun MainScreen(viewModel: com.zorindisplays.display.model.MainViewModel = remember { com.zorindisplays.display.model.MainViewModel() }) {
+    val dataSource = viewModel.dataSource
+    val demo: DemoState by dataSource.state.collectAsState()
 
-    val emulator = remember { Emulator().also { it.start() } }
-    DisposableEffect(Unit) { onDispose { emulator.stop() } }
-
-    val demo by emulator.state.collectAsState()
+    // Старт/остановка эмулятора
+    DisposableEffect(Unit) {
+        dataSource.emulator.start()
+        onDispose { dataSource.emulator.stop() }
+    }
 
     var win by remember { mutableStateOf<WinPhase>(WinPhase.None) }
     var payoutSelectedBox by remember { mutableStateOf<Pair<Int, Int>?>(null) } // table to box
@@ -119,12 +123,12 @@ fun MainScreen() {
         )
 
         // слушаем win events
-        LaunchedEffect(emulator) {
-            emulator.events.collectLatest { e ->
+        LaunchedEffect(dataSource) {
+            dataSource.events.collectLatest { e ->
                 when (e) {
                     is DemoEvent.JackpotWin -> {
                         payoutSelectedBox = null
-                        emulator.setPaused(true)
+                        viewModel.emulator.setPaused(true)
 
                         // (0) reset reveal
                         revealWinnerBox = false
@@ -182,11 +186,11 @@ fun MainScreen() {
                     is DemoEvent.DealerPayoutConfirmed -> {
                         val cur = win
                         if (cur is WinPhase.Takeover && cur.table == e.table) {
-                            emulator.resetJackpot(cur.level)
+                            viewModel.emulator.resetJackpot(cur.level)
                             payoutSelectedBox = null
                             win = WinPhase.None
                             revealWinnerBox = false
-                            emulator.setPaused(false)
+                            viewModel.emulator.setPaused(false)
                         }
                     }
                 }
