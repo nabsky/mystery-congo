@@ -114,6 +114,32 @@ fun MainScreen(viewModel: com.zorindisplays.display.model.MainViewModel = rememb
         else -> 1
     }
 
+    // --- Нормализация tableId/boxId ---
+    fun normalizeTableId(raw: Int): Int {
+        return when (raw) {
+            in 1..8 -> raw - 1
+            else -> raw
+        }.coerceIn(0, 7)
+    }
+    fun normalizeBoxId(raw: Int): Int {
+        return when (raw) {
+            in 1..9 -> raw - 1
+            else -> raw
+        }.coerceIn(0, 8)
+    }
+    fun normalizeUiBoxId(raw: Int): Int {
+        return when (raw) {
+            in 1..9 -> raw - 1
+            else -> raw
+        }.coerceIn(0, 8)
+    }
+    fun normalizeUiTableId(raw: Int): Int {
+        return when (raw) {
+            in 1..8 -> raw - 1
+            else -> raw
+        }.coerceIn(0, 7)
+    }
+
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val scope = this
 
@@ -147,8 +173,8 @@ fun MainScreen(viewModel: com.zorindisplays.display.model.MainViewModel = rememb
                     is DemoEvent.JackpotHit -> {
 
                         val level = levelFromJackpotId(e.jackpotId)
-                        val table = e.tableId
-                        val box = e.boxId
+                        val table = normalizeTableId(e.tableId)
+                        val box = normalizeBoxId(e.boxId)
 
                         payoutSelectedBox = null
                         emu?.emulator?.setPaused(true)
@@ -201,14 +227,18 @@ fun MainScreen(viewModel: com.zorindisplays.display.model.MainViewModel = rememb
 
                     is DemoEvent.DealerPayoutBoxSelected -> {
                         val cur = win
-                        if (cur is WinPhase.Takeover && cur.table == e.tableId) {
-                            payoutSelectedBox = e.tableId to e.boxId
+                        val tId = normalizeTableId(e.tableId)
+                        val bId = normalizeBoxId(e.boxId)
+                        if (cur is WinPhase.Takeover && cur.table == tId) {
+                            payoutSelectedBox = tId to bId
                         }
                     }
 
                     is DemoEvent.DealerPayoutConfirmed -> {
                         val cur = win
-                        if (cur is WinPhase.Takeover && cur.table == e.tableId) {
+                        val tId = normalizeTableId(e.tableId)
+                        val bId = normalizeBoxId(e.boxId)
+                        if (cur is WinPhase.Takeover && cur.table == tId) {
                             emu?.emulator?.resetJackpot(cur.level)
                             payoutSelectedBox = null
                             win = WinPhase.None
@@ -485,9 +515,15 @@ fun MainScreen(viewModel: com.zorindisplays.display.model.MainViewModel = rememb
             if (win is WinPhase.None) {
                 // нормальный режим: твой TableStage со всеми фичами
                 val tableStatesLike = object : TableStatesLike {
-                    override fun isActive(table: Int): Boolean = activeTables.contains(table)
-                    override fun hasBetOnBox(table: Int, box: Int): Boolean =
-                        litBets[table]?.contains(box) == true
+                    override fun isActive(table: Int): Boolean {
+                        val uiTable = normalizeUiTableId(table)
+                        return activeTables.contains(uiTable)
+                    }
+                    override fun hasBetOnBox(table: Int, box: Int): Boolean {
+                        val uiTable = normalizeUiTableId(table)
+                        val uiBox = normalizeUiBoxId(box)
+                        return litBets[uiTable]?.contains(uiBox) == true
+                    }
                 }
 
                 TableStage(
@@ -510,10 +546,15 @@ fun MainScreen(viewModel: com.zorindisplays.display.model.MainViewModel = rememb
                     val winColor = jackpotAccent(w.level)
 
                     val winnerOnlyStates = object : TableStatesLike {
-                        override fun isActive(table: Int): Boolean = activeTables.contains(table)
+                        override fun isActive(table: Int): Boolean {
+                            val uiTable = normalizeUiTableId(table)
+                            return activeTables.contains(uiTable)
+                        }
                         override fun hasBetOnBox(table: Int, box: Int): Boolean {
                             if (!revealWinnerBox) return false
-                            return (table == w.table && box == w.box)
+                            val uiTable = normalizeUiTableId(table)
+                            val uiBox = normalizeUiBoxId(box)
+                            return (uiTable == w.table && uiBox == w.box)
                         }
                     }
 
@@ -782,9 +823,10 @@ fun MainScreen(viewModel: com.zorindisplays.display.model.MainViewModel = rememb
                             object : TableStatesLike {
                                 override fun isActive(table: Int): Boolean = true
                                 override fun hasBetOnBox(table: Int, box: Int): Boolean {
-                                    // если дилер выбрал бокс на выплату: делаем его полым (не "bet")
-                                    if (selected != null && box == selected.second) return false
-                                    return (box == t.box)
+                                    val uiBox = normalizeUiBoxId(box)
+                                    val sel = selected
+                                    if (sel != null && uiBox == sel.second) return false
+                                    return (uiBox == t.box)
                                 }
                             }
                         }
@@ -808,10 +850,10 @@ fun MainScreen(viewModel: com.zorindisplays.display.model.MainViewModel = rememb
                                 text = Color.White,
                             ),
                             betFillOverride = { _, box ->
-                                // если дилер выбрал этот бокс – делаем его полым
+                                val uiBox = normalizeUiBoxId(box)
                                 val sel = selected
-                                if (sel != null && box == sel.second) null
-                                else if (box == t.box) Color.White else null
+                                if (sel != null && uiBox == sel.second) null
+                                else if (uiBox == t.box) Color.White else null
                             },
                         )
                     }
