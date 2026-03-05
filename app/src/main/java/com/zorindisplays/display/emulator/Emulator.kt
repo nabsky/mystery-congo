@@ -45,7 +45,8 @@ class Emulator(
     fun setPaused(value: Boolean) {
         paused = value
         if (value) {
-            rebuildState(emptyMap(), true)
+            // Очищаем только lit bets, jackpots не трогаем
+            rebuildState(_state.value.jackpots, clearLitBets = true)
         }
     }
 
@@ -190,11 +191,7 @@ class Emulator(
         activeTables: Set<Int>? = null,
         litBets: Map<Int, Set<Int>>? = null
     ) {
-        val jps = if (jackpots.isEmpty()) mapOf(
-            "RUBY" to START_RUBY,
-            "GOLD" to START_GOLD,
-            "JADE" to START_JADE
-        ) else jackpots
+        val jps = if (jackpots.isEmpty()) _state.value.jackpots else jackpots
         val actTables = activeTables ?: _state.value.tables.filter { it.isActive }.map { it.tableId }.toSet()
         val lit = if (clearLitBets) emptyMap() else litBets ?: _state.value.tables.associate { it.tableId to it.activeBoxes }
         val tables = (0 until tableCount).map { idx ->
