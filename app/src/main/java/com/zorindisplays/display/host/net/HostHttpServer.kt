@@ -26,6 +26,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.coroutines.CoroutineExceptionHandler
 
 class HostHttpServer(
     private val hostDataSource: HostDataSource,
@@ -37,78 +38,93 @@ class HostHttpServer(
 
     fun start() {
         if (server != null) return // Защита от двойного запуска
-        scope.launch(Dispatchers.IO) {
-            server = embeddedServer(CIO, port = port) {
-                install(ContentNegotiation) {
-                    json(Json { ignoreUnknownKeys = true })
-                }
-                routing {
-                    post("/input/toggle") {
-                        val req = call.receive<ToggleRequest>()
-                        hostDataSource.toggleBox(req.tableId, req.boxId)
-                        call.respond(mapOf("ok" to true))
+
+        val handler = CoroutineExceptionHandler { _, exception ->
+             println("HostHttpServer: Error in server coroutine: $exception")
+             exception.printStackTrace()
+             server = null
+        }
+
+        scope.launch(Dispatchers.IO + handler) {
+            try {
+                val s = embeddedServer(CIO, port = port, host = "0.0.0.0") {
+                    install(ContentNegotiation) {
+                        json(Json { ignoreUnknownKeys = true })
                     }
-                    post("/input/confirm") {
-                        val req = call.receive<ConfirmRequest>()
-                        hostDataSource.confirmBets(req.tableId)
-                        call.respond(mapOf("ok" to true))
-                    }
-                    post("/input/payout/selectBox") {
-                        val req = call.receive<SelectPayoutBoxRequest>()
-                        hostDataSource.selectPayoutBox(req.tableId, req.boxId)
-                        call.respond(mapOf("ok" to true))
-                    }
-                    post("/input/payout/confirm") {
-                        val req = call.receive<ConfirmPayoutRequest>()
-                        hostDataSource.confirmPayout(req.tableId)
-                        call.respond(mapOf("ok" to true))
-                    }
-                    get("/sync") {
-                        withContext(Dispatchers.IO) {
-                            hostRepository.ensureInitialized()
-                            val afterEventId =
-                                call.request.queryParameters["afterEventId"]?.toLongOrNull() ?: 0L
-                            val global = hostRepository.getGlobalState()
-                            val stateVersion = global?.stateVersion ?: 0L
-                            val lastEventId = global?.lastEventId ?: 0L
-                            val events = hostRepository.getEventsAfter(afterEventId)
-                            call.respond(
-                                SyncResponse(
-                                    stateVersion = stateVersion,
-                                    lastEventId = lastEventId,
-                                    events = events.map {
-                                        SyncEvent(
-                                            eventId = it.eventId,
-                                            ts = it.ts,
-                                            type = it.type,
-                                            payloadJson = it.payloadJson
-                                        )
-                                    }
+                    routing {
+                        // ...
+                        post("/input/toggle") {
+                            val req = call.receive<ToggleRequest>()
+                            hostDataSource.toggleBox(req.tableId, req.boxId)
+                            call.respond(mapOf("ok" to true))
+                        }
+                        post("/input/confirm") {
+                            val req = call.receive<ConfirmRequest>()
+                            hostDataSource.confirmBets(req.tableId)
+                            call.respond(mapOf("ok" to true))
+                        }
+                        post("/input/payout/selectBox") {
+                            val req = call.receive<SelectPayoutBoxRequest>()
+                            hostDataSource.selectPayoutBox(req.tableId, req.boxId)
+                            call.respond(mapOf("ok" to true))
+                        }
+                        post("/input/payout/confirm") {
+                            val req = call.receive<ConfirmPayoutRequest>()
+                            hostDataSource.confirmPayout(req.tableId)
+                            call.respond(mapOf("ok" to true))
+                        }
+                        get("/sync") {
+                            withContext(Dispatchers.IO) {
+                                hostRepository.ensureInitialized()
+                                val afterEventId =
+                                    call.request.queryParameters["afterEventId"]?.toLongOrNull() ?: 0L
+                                val global = hostRepository.getGlobalState()
+                                val stateVersion = global?.stateVersion ?: 0L
+                                val lastEventId = global?.lastEventId ?: 0L
+                                val events = hostRepository.getEventsAfter(afterEventId)
+                                call.respond(
+                                    SyncResponse(
+                                        stateVersion = stateVersion,
+                                        lastEventId = lastEventId,
+                                        events = events.map {
+                                            SyncEvent(
+                                                eventId = it.eventId,
+                                                ts = it.ts,
+                                                type = it.type,
+                                                payloadJson = it.payloadJson
+                                            )
+                                        }
+                                    )
                                 )
-                            )
+                            }
+                        }
+                        get("/health") {
+                            withContext(Dispatchers.IO) {
+                                hostRepository.ensureInitialized()
+                                val global = hostRepository.getGlobalState()
+                                val stateVersion = global?.stateVersion ?: 0L
+                                val lastEventId = global?.lastEventId ?: 0L
+                                call.respond(
+                                    mapOf(
+                                        "ok" to true,
+                                        "stateVersion" to stateVersion,
+                                        "lastEventId" to lastEventId
+                                    )
+                                )
+                            }
+                        }
+                        get("/snapshot") {
+                            val snapshot = hostRepository.snapshot()
+                            call.respond(snapshot)
                         }
                     }
-                    get("/health") {
-                        withContext(Dispatchers.IO) {
-                            hostRepository.ensureInitialized()
-                            val global = hostRepository.getGlobalState()
-                            val stateVersion = global?.stateVersion ?: 0L
-                            val lastEventId = global?.lastEventId ?: 0L
-                            call.respond(
-                                mapOf(
-                                    "ok" to true,
-                                    "stateVersion" to stateVersion,
-                                    "lastEventId" to lastEventId
-                                )
-                            )
-                        }
-                    }
-                    get("/snapshot") {
-                        val snapshot = hostRepository.snapshot()
-                        call.respond(snapshot)
-                    }
                 }
-            }.start(wait = true)
+                server = s
+                s.start(wait = true)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                server = null
+            }
         }
     }
 

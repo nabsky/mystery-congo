@@ -6,6 +6,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.TweenSpec
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.*
@@ -77,7 +78,10 @@ private sealed interface WinPhase {
 }
 
 @Composable
-fun MainScreen(viewModel: com.zorindisplays.display.model.MainViewModel) {
+fun MainScreen(
+    viewModel: com.zorindisplays.display.model.MainViewModel,
+    onResetRole: () -> Unit
+) {
     val dataSource = viewModel.dataSource
     val demo: DemoState by dataSource.state.collectAsState()
 
@@ -238,6 +242,14 @@ fun MainScreen(viewModel: com.zorindisplays.display.model.MainViewModel) {
             LuxuryBackground(modifier = Modifier.fillMaxSize())
 
             // Логотип Mystery Jackpot по центру сверху
+            var clickCount by remember { mutableStateOf(0) }
+            LaunchedEffect(clickCount) {
+                if (clickCount > 0) {
+                   delay(2000)
+                   clickCount = 0
+                }
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -249,7 +261,14 @@ fun MainScreen(viewModel: com.zorindisplays.display.model.MainViewModel) {
                     contentDescription = "Mystery Jackpot Logo",
                     modifier = Modifier
                         .width(230.dp)
-                        .height(170.dp),
+                        .height(170.dp)
+                        .clickable {
+                             clickCount++
+                             if (clickCount >= 5) {
+                                 onResetRole()
+                                 clickCount = 0
+                             }
+                        },
                     contentScale = ContentScale.Fit
                 )
             }

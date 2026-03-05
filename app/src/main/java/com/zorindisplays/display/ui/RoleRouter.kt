@@ -90,7 +90,14 @@ fun RoleRouter() {
 
             // Re-keying ViewModel ensures we get a fresh instance
             val vm: MainViewModel = viewModel(key = "${role.name}|${savedHostUrl}", factory = factory)
-            MainScreen(viewModel = vm)
+            MainScreen(
+                viewModel = vm,
+                onResetRole = {
+                    scope.launch {
+                        prefs.setRole(ModelDeviceRole.UNSET)
+                    }
+                }
+            )
         }
     }
 }
