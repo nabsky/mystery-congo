@@ -355,70 +355,119 @@ fun MainScreen(viewModel: com.zorindisplays.display.model.MainViewModel = rememb
 
         if (!takeover) {
             // Ruby
-            JackpotAmount(
-                amountMinor = jackpot1,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .offset(y = yFor(1))
-                    .graphicsLayerAlphaScale(alphaFor(1), scaleFor(1)),
-                style = TextStyle(fontFamily = ChangoRegular, fontSize = 140.sp),
-                format = MoneyFormat(
-                    currency = "",
-                    currencyPosition = CurrencyPosition.Prefix,
-                    thousandsSeparator = ' ',
-                    decimalSeparator = ',',
-                    fractionDigits = 0,
-                ),
-                fillColor = Color(0xFFFF0000),
-                shadow = TextShadowSpec(Color.Black.copy(alpha = 0.65f), Offset(0f, 11f), 22f),
-                strokeColor = Color.Black.copy(alpha = 0.18f),
-                strokeWidth = 1.3.dp,
-                maxRollingDigitsFromEnd = 4,
-            )
+            val hostOnline = demo.jackpots.isNotEmpty()
+            if (hostOnline) {
+                JackpotAmount(
+                    amountMinor = jackpot1,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .offset(y = yFor(1))
+                        .graphicsLayerAlphaScale(alphaFor(1), scaleFor(1)),
+                    style = TextStyle(fontFamily = ChangoRegular, fontSize = 140.sp),
+                    format = MoneyFormat(
+                        currency = "",
+                        currencyPosition = CurrencyPosition.Prefix,
+                        thousandsSeparator = ' ',
+                        decimalSeparator = ',',
+                        fractionDigits = 0,
+                    ),
+                    fillColor = Color(0xFFFF0000),
+                    shadow = TextShadowSpec(Color.Black.copy(alpha = 0.65f), Offset(0f, 11f), 22f),
+                    strokeColor = Color.Black.copy(alpha = 0.18f),
+                    strokeWidth = 1.3.dp,
+                    maxRollingDigitsFromEnd = 4,
+                )
+            } else {
+                BasicText(
+                    text = "★★★★★",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .offset(y = yFor(1))
+                        .graphicsLayerAlphaScale(alphaFor(1), scaleFor(1)),
+                    style = TextStyle(
+                        fontFamily = ChangoRegular,
+                        fontSize = 140.sp,
+                        color = Color(0xFFFF0000),
+                        textAlign = TextAlign.Center
+                    )
+                )
+            }
 
             // Gold
-            JackpotAmount(
-                amountMinor = jackpot2,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .offset(y = yFor(2))
-                    .graphicsLayerAlphaScale(alphaFor(2), scaleFor(2)),
-                style = TextStyle(fontFamily = ChangoRegular, fontSize = 120.sp),
-                format = MoneyFormat(
-                    currency = "",
-                    currencyPosition = CurrencyPosition.Prefix,
-                    thousandsSeparator = ' ',
-                    decimalSeparator = ',',
-                    fractionDigits = 0,
-                ),
-                fillColor = Color(0xFFEEC239),
-                shadow = TextShadowSpec(Color.Black.copy(alpha = 0.55f), Offset(0f, 8f), 18f),
-                strokeColor = Color.Black.copy(alpha = 0.14f),
-                strokeWidth = 1.2.dp,
-                maxRollingDigitsFromEnd = 4,
-            )
+            if (hostOnline) {
+                JackpotAmount(
+                    amountMinor = jackpot2,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .offset(y = yFor(2))
+                        .graphicsLayerAlphaScale(alphaFor(2), scaleFor(2)),
+                    style = TextStyle(fontFamily = ChangoRegular, fontSize = 120.sp),
+                    format = MoneyFormat(
+                        currency = "",
+                        currencyPosition = CurrencyPosition.Prefix,
+                        thousandsSeparator = ' ',
+                        decimalSeparator = ',',
+                        fractionDigits = 0,
+                    ),
+                    fillColor = Color(0xFFEEC239),
+                    shadow = TextShadowSpec(Color.Black.copy(alpha = 0.55f), Offset(0f, 8f), 18f),
+                    strokeColor = Color.Black.copy(alpha = 0.14f),
+                    strokeWidth = 1.2.dp,
+                    maxRollingDigitsFromEnd = 4,
+                )
+            } else {
+                BasicText(
+                    text = "★★★",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .offset(y = yFor(2))
+                        .graphicsLayerAlphaScale(alphaFor(2), scaleFor(2)),
+                    style = TextStyle(
+                        fontFamily = ChangoRegular,
+                        fontSize = 120.sp,
+                        color = Color(0xFFEEC239),
+                        textAlign = TextAlign.Center
+                    )
+                )
+            }
 
             // Jade
-            JackpotAmount(
-                amountMinor = jackpot3,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .offset(y = yFor(3))
-                    .graphicsLayerAlphaScale(alphaFor(3), scaleFor(3)),
-                style = TextStyle(fontFamily = ChangoRegular, fontSize = 90.sp),
-                format = MoneyFormat(
-                    currency = "",
-                    currencyPosition = CurrencyPosition.Prefix,
-                    thousandsSeparator = ' ',
-                    decimalSeparator = ',',
-                    fractionDigits = 0,
-                ),
-                fillColor = Color(0xFF28A368),
-                shadow = TextShadowSpec(Color.Black.copy(alpha = 0.55f), Offset(0f, 7f), 16f),
-                strokeColor = Color.Black.copy(alpha = 0.14f),
-                strokeWidth = 1.2.dp,
-                maxRollingDigitsFromEnd = 4,
-            )
+            if (hostOnline) {
+                JackpotAmount(
+                    amountMinor = jackpot3,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .offset(y = yFor(3))
+                        .graphicsLayerAlphaScale(alphaFor(3), scaleFor(3)),
+                    style = TextStyle(fontFamily = ChangoRegular, fontSize = 90.sp),
+                    format = MoneyFormat(
+                        currency = "",
+                        currencyPosition = CurrencyPosition.Prefix,
+                        thousandsSeparator = ' ',
+                        decimalSeparator = ',',
+                        fractionDigits = 0,
+                    ),
+                    fillColor = Color(0xFF28A368),
+                    shadow = TextShadowSpec(Color.Black.copy(alpha = 0.55f), Offset(0f, 7f), 16f),
+                    strokeColor = Color.Black.copy(alpha = 0.14f),
+                    strokeWidth = 1.2.dp,
+                    maxRollingDigitsFromEnd = 4,
+                )
+            } else {
+                BasicText(
+                    text = "★",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .offset(y = yFor(3))
+                        .graphicsLayerAlphaScale(alphaFor(3), scaleFor(3)),
+                    style = TextStyle(
+                        fontFamily = ChangoRegular,
+                        fontSize = 90.sp,
+                        color = Color(0xFF28A368),
+                        textAlign = TextAlign.Center
+                    )
+                )
+            }
         }
 
         // ======== WIN coins: center2 -> winner box (только в Focus) ========
