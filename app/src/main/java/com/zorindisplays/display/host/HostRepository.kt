@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import androidx.room.withTransaction
 import com.zorindisplays.display.host.db.*
+import com.zorindisplays.display.model.DemoState
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.Serializable
@@ -64,5 +65,16 @@ class HostRepository(context: Context) {
             }
             dao.bumpStateVersionAndLastEventId(eventId, now)
         }
+    }
+
+    // Удаляем replayEvents, snapshot теперь возвращает текущее состояние
+    suspend fun snapshot(): DemoState {
+        val jackpots = dao.getJackpotState().associate { it.jackpotId to it.currentAmount }
+        return DemoState(
+            tables = emptyList(),
+            jackpots = jackpots,
+            systemMode = DemoState.SystemMode.ACCEPTING_BETS,
+            pendingWin = null
+        )
     }
 }

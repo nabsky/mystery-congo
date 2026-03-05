@@ -24,4 +24,7 @@ interface HostDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertGlobalState(row: GlobalStateRow): Long
+
+    @Query("SELECT * FROM event_log ORDER BY eventId ASC")
+    suspend fun getAllEvents(): List<EventLogRow>
 }

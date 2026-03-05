@@ -104,7 +104,8 @@ class HostHttpServer(
                         }
                     }
                     get("/snapshot") {
-                        call.respond<DemoState>(hostDataSource.state.value)
+                        val snapshot = hostRepository.snapshot()
+                        call.respond(snapshot)
                     }
                 }
             }.start(wait = false)
