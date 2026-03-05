@@ -14,38 +14,56 @@ import com.zorindisplays.display.model.DeviceRole
 @Composable
 fun RolePickerDialog(
     currentRole: DeviceRole,
+    initialHostUrl: String,
     onRoleSelected: (DeviceRole) -> Unit,
+    onHostUrlChanged: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    var hostUrl by remember { mutableStateOf(initialHostUrl) }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Выберите роль устройства") },
         text = {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                // Input for Host URL (mostly for TABLE)
+                androidx.compose.material3.OutlinedTextField(
+                    value = hostUrl,
+                    onValueChange = {
+                       hostUrl = it
+                       onHostUrlChanged(it)
+                    },
+                    label = { Text("Host URL (for TABLE)") },
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                )
+
                 Button(
                     onClick = { onRoleSelected(DeviceRole.DEMO); onDismiss() },
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                ) { Text("DEMO") }
+                ) { Text("DEMO (Emulator)") }
+
                 Button(
                     onClick = {
-                        // HOST/TABLE пока не реализовано
-                        onRoleSelected(DeviceRole.DEMO)
-                        onDismiss()
-                        // Можно показать Snackbar/Toast/Alert
-                    },
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                ) { Text("HOST (not implemented)") }
-                Button(
-                    onClick = {
-                        onRoleSelected(DeviceRole.DEMO)
+                        onRoleSelected(DeviceRole.HOST)
                         onDismiss()
                     },
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                ) { Text("TABLE (not implemented)") }
+                ) { Text("HOST (Server)") }
+
+                Button(
+                    onClick = {
+                        onRoleSelected(DeviceRole.TABLE)
+                        onDismiss()
+                    },
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                ) { Text("TABLE (Client)") }
             }
         },
         confirmButton = {
-            Button(onClick = onDismiss) { Text("Закрыть") }
+            // No cancel, must pick role? Or allow dismiss if role already set
+            if (currentRole != DeviceRole.UNSET) {
+                Button(onClick = onDismiss) { Text("Закрыть") }
+            }
         }
     )
 }

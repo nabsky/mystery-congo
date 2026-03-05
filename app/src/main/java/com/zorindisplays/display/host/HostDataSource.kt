@@ -27,6 +27,8 @@ class HostDataSource(
     private val boxCount: Int = 9,
     private val stakePerBox: Long = 100
 ) : JackpotDataSource {
+    var onClose: (() -> Unit)? = null
+
     private val _state = MutableStateFlow(DemoState())
     override val state: StateFlow<DemoState> get() = _state
     private val _events = MutableSharedFlow<DemoEvent>(extraBufferCapacity = 32)
@@ -84,7 +86,10 @@ class HostDataSource(
     }
 
     override fun start(scope: CoroutineScope) { /* no-op, уже запущено */ }
-    override suspend fun stop() { job?.cancel() }
+    override suspend fun stop() {
+        job?.cancel()
+        onClose?.invoke()
+    }
 
     override suspend fun toggleBox(tableId: Int, boxId: Int) {
         if (systemMode != DemoState.SystemMode.ACCEPTING_BETS) return

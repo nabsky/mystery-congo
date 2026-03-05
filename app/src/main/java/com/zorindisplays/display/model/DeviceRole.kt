@@ -6,4 +6,3 @@ enum class DeviceRole {
     HOST,
     TABLE
 }
-

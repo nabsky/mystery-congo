@@ -48,6 +48,7 @@ dependencies {
     implementation(libs.emoji2)
     implementation(libs.androidx.compose.material3)
     implementation(libs.datastore.preferences)
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
     debugImplementation(libs.ui.tooling)
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)

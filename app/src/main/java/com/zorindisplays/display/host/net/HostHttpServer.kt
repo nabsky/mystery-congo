@@ -108,7 +108,7 @@ class HostHttpServer(
                         call.respond(snapshot)
                     }
                 }
-            }.start(wait = false)
+            }.start(wait = true)
         }
     }
 

@@ -77,7 +77,7 @@ private sealed interface WinPhase {
 }
 
 @Composable
-fun MainScreen(viewModel: com.zorindisplays.display.model.MainViewModel = remember { com.zorindisplays.display.model.MainViewModel() }) {
+fun MainScreen(viewModel: com.zorindisplays.display.model.MainViewModel) {
     val dataSource = viewModel.dataSource
     val demo: DemoState by dataSource.state.collectAsState()
 

@@ -101,7 +101,23 @@ class TableDataSource(
                                     val winAmount = obj["winAmount"]?.jsonPrimitive?.long ?: 0L
                                     _events.tryEmit(DemoEvent.JackpotHit(jackpotId, tableId, boxId, winAmount))
                                 }
-                                "BetsConfirmed", "PayoutConfirmed" -> {
+                                "PayoutSelectedBox" -> {
+                                    val obj = Json.parseToJsonElement(event.payloadJson).jsonObject
+                                    val tableId = obj["tableId"]?.jsonPrimitive?.int ?: 0
+                                    val boxId = obj["boxId"]?.jsonPrimitive?.int ?: 0
+                                    _events.tryEmit(DemoEvent.DealerPayoutBoxSelected(tableId, boxId))
+                                }
+                                "PayoutConfirmed" -> {
+                                    val obj = Json.parseToJsonElement(event.payloadJson).jsonObject
+                                    val tableId = obj["tableId"]?.jsonPrimitive?.int ?: 0
+                                    val boxId = obj["boxId"]?.jsonPrimitive?.int ?: 0
+                                    _events.tryEmit(DemoEvent.DealerPayoutConfirmed(tableId, boxId))
+
+                                    // Also refresh snapshot just in case state changed
+                                    val snapshot: DemoState = client.get("$baseUrl/snapshot").body()
+                                    _state.value = snapshot
+                                }
+                                "BetsConfirmed" -> {
                                     // Просто рефетчим /snapshot
                                     val snapshot: DemoState = client.get("$baseUrl/snapshot").body()
                                     _state.value = snapshot

@@ -24,6 +24,11 @@ class DevicePrefs(private val context: Context) {
     val roleFlow: Flow<DeviceRole> = context.devicePrefsDataStore.data.map { prefs ->
         DeviceRole.valueOf(prefs[DevicePrefsKeys.role] ?: DeviceRole.UNSET.name)
     }
+
+    val hostAddressFlow: Flow<String> = context.devicePrefsDataStore.data.map { prefs ->
+        prefs[DevicePrefsKeys.hostAddress] ?: "http://192.168.1.100:8080"
+    }
+
     val deviceIdFlow: Flow<String> = context.devicePrefsDataStore.data.map { prefs ->
         prefs[DevicePrefsKeys.deviceId] ?: ""
     }
@@ -31,6 +36,12 @@ class DevicePrefs(private val context: Context) {
     suspend fun setRole(role: DeviceRole) {
         context.devicePrefsDataStore.edit { prefs ->
             prefs[DevicePrefsKeys.role] = role.name
+        }
+    }
+
+    suspend fun setHostAddress(address: String) {
+        context.devicePrefsDataStore.edit { prefs ->
+            prefs[DevicePrefsKeys.hostAddress] = address
         }
     }
 
