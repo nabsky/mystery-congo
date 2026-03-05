@@ -57,6 +57,7 @@ class HostRepository(context: Context) {
         val now = System.currentTimeMillis()
         db.withTransaction {
             ensureInitialized()
+            val globalState = dao.getGlobalState()
             val event = EventLogRow(ts = now, type = type, payloadJson = payloadJson)
             val eventId = dao.appendEvent(event)
             jackpotUpdates?.let {
