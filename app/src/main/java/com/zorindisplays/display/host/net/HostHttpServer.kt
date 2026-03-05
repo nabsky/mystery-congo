@@ -1,27 +1,31 @@
-// ...existing imports...
+package com.zorindisplays.display.host.net
+
 import com.zorindisplays.display.host.HostDataSource
 import com.zorindisplays.display.host.HostRepository
-import io.ktor.server.engine.*
-import io.ktor.server.cio.*
-import io.ktor.server.application.*
-import io.ktor.server.routing.*
-import io.ktor.server.request.*
-import io.ktor.server.response.*
-import io.ktor.server.plugins.contentnegotiation.*
-import io.ktor.serialization.kotlinx.json.*
-import kotlinx.serialization.json.Json
-import com.zorindisplays.display.host.net.dto.ToggleRequest
+import com.zorindisplays.display.host.net.dto.ConfirmPayoutRequest
 import com.zorindisplays.display.host.net.dto.ConfirmRequest
 import com.zorindisplays.display.host.net.dto.SelectPayoutBoxRequest
-import com.zorindisplays.display.host.net.dto.ConfirmPayoutRequest
-import com.zorindisplays.display.host.net.dto.SyncResponse
 import com.zorindisplays.display.host.net.dto.SyncEvent
+import com.zorindisplays.display.host.net.dto.SyncResponse
+import com.zorindisplays.display.host.net.dto.ToggleRequest
 import com.zorindisplays.display.model.DemoState
+import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.call
+import io.ktor.server.application.install
+import io.ktor.server.cio.CIO
+import io.ktor.server.engine.ApplicationEngine
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.request.receive
+import io.ktor.server.response.respond
+import io.ktor.server.routing.get
+import io.ktor.server.routing.post
+import io.ktor.server.routing.routing
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
 class HostHttpServer(
     private val hostDataSource: HostDataSource,
@@ -62,7 +66,8 @@ class HostHttpServer(
                     get("/sync") {
                         withContext(Dispatchers.IO) {
                             hostRepository.ensureInitialized()
-                            val afterEventId = call.request.queryParameters["afterEventId"]?.toLongOrNull() ?: 0L
+                            val afterEventId =
+                                call.request.queryParameters["afterEventId"]?.toLongOrNull() ?: 0L
                             val global = hostRepository.getGlobalState()
                             val stateVersion = global?.stateVersion ?: 0L
                             val lastEventId = global?.lastEventId ?: 0L
@@ -89,11 +94,13 @@ class HostHttpServer(
                             val global = hostRepository.getGlobalState()
                             val stateVersion = global?.stateVersion ?: 0L
                             val lastEventId = global?.lastEventId ?: 0L
-                            call.respond(mapOf(
-                                "ok" to true,
-                                "stateVersion" to stateVersion,
-                                "lastEventId" to lastEventId
-                            ))
+                            call.respond(
+                                mapOf(
+                                    "ok" to true,
+                                    "stateVersion" to stateVersion,
+                                    "lastEventId" to lastEventId
+                                )
+                            )
                         }
                     }
                     get("/snapshot") {

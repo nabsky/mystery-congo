@@ -32,14 +32,14 @@ import com.nabsky.mystery.component.TableRowView
 import com.nabsky.mystery.component.TableStatesLike
 import com.nabsky.mystery.component.TableViewColors
 import com.zorindisplays.display.R
-import com.zorindisplays.display.emulator.DemoEvent
-import com.zorindisplays.display.emulator.DemoState
-import com.zorindisplays.display.emulator.Emulator
+import com.zorindisplays.display.model.DemoEvent
+import com.zorindisplays.display.model.DemoState
 import com.zorindisplays.display.ui.components.*
 import com.zorindisplays.display.ui.theme.ChangoRegular
 import com.zorindisplays.display.ui.theme.MontserratBold
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToLong
@@ -81,11 +81,21 @@ fun MainScreen(viewModel: com.zorindisplays.display.model.MainViewModel = rememb
     val dataSource = viewModel.dataSource
     val demo: DemoState by dataSource.state.collectAsState()
 
+    val jackpot1 = demo.jackpots["RUBY"] ?: 0L
+    val jackpot2 = demo.jackpots["GOLD"] ?: 0L
+    val jackpot3 = demo.jackpots["JADE"] ?: 0L
+
+    val activeTables: Set<Int> = demo.tables.filter { it.isActive }.map { it.tableId }.toSet()
+    val litBets: Map<Int, Set<Int>> = demo.tables.associate { it.tableId to it.activeBoxes }
+
     // Старт/остановка эмулятора
-    DisposableEffect(Unit) {
-        dataSource.emulator.start()
-        onDispose { dataSource.emulator.stop() }
+    val uiScope = rememberCoroutineScope()
+
+    DisposableEffect(dataSource) {
+        dataSource.start(uiScope)
+        onDispose { uiScope.launch { dataSource.stop() } }
     }
+    val emu = dataSource as? com.zorindisplays.display.model.EmulatorDataSource
 
     var win by remember { mutableStateOf<WinPhase>(WinPhase.None) }
     var payoutSelectedBox by remember { mutableStateOf<Pair<Int, Int>?>(null) } // table to box
@@ -97,11 +107,19 @@ fun MainScreen(viewModel: com.zorindisplays.display.model.MainViewModel = rememb
     // интрига: winner box подсвечиваем только ПОСЛЕ того, как монетки "втекли" в него
     var revealWinnerBox by remember { mutableStateOf(false) }
 
+    fun levelFromJackpotId(id: String): Int = when (id) {
+        "RUBY" -> 1
+        "GOLD" -> 2
+        "JADE" -> 3
+        else -> 1
+    }
+
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val scope = this
 
         val density = LocalDensity.current
-        val wPx = with(density) { maxWidth.toPx() }
-        val hPx = with(density) { maxHeight.toPx() }
+        val wPx = with(density) { scope.maxWidth.toPx() }
+        val hPx = with(density) { scope.maxHeight.toPx() }
 
         val tableHeight = 240.dp
         val tableHeightPx = with(density) { tableHeight.toPx() }
@@ -126,26 +144,31 @@ fun MainScreen(viewModel: com.zorindisplays.display.model.MainViewModel = rememb
         LaunchedEffect(dataSource) {
             dataSource.events.collectLatest { e ->
                 when (e) {
-                    is DemoEvent.JackpotWin -> {
+                    is DemoEvent.JackpotHit -> {
+
+                        val level = levelFromJackpotId(e.jackpotId)
+                        val table = e.tableId
+                        val box = e.boxId
+
                         payoutSelectedBox = null
-                        viewModel.emulator.setPaused(true)
+                        emu?.emulator?.setPaused(true)
 
                         // (0) reset reveal
                         revealWinnerBox = false
 
                         // (1) Rain (без подсветки winner box)
-                        win = WinPhase.Rain(e.level, e.table, e.box, e.amountWon)
+                        win = WinPhase.Rain(level, table, box, e.winAmount)
                         rain = RainRequest(target = rainTarget)
                         delay(1500)
                         rain = null
 
                         // (2) Focus
-                        win = WinPhase.Focus(e.level, e.table, e.box, e.amountWon)
+                        win = WinPhase.Focus(level, table, box, e.winAmount)
                         delay(16)
 
                         val winnerCenterInRoot = computeBoxCenterInRootPx(
-                            table = e.table,
-                            box = e.box,
+                            table = table,
+                            box = box,
                             rootW = wPx,
                             rootH = hPx,
                             tableHeightPx = tableHeightPx,
@@ -172,25 +195,25 @@ fun MainScreen(viewModel: com.zorindisplays.display.model.MainViewModel = rememb
                         delay(850)
 
                         // (5) Takeover
-                        win = WinPhase.Takeover(e.level, e.table, e.box, e.amountWon)
+                        win = WinPhase.Takeover(level, table, box, e.winAmount)
                         // Дальше ждём подтверждения дилера через события (см. ниже)
                     }
 
                     is DemoEvent.DealerPayoutBoxSelected -> {
                         val cur = win
-                        if (cur is WinPhase.Takeover && cur.table == e.table) {
-                            payoutSelectedBox = e.table to e.box
+                        if (cur is WinPhase.Takeover && cur.table == e.tableId) {
+                            payoutSelectedBox = e.tableId to e.boxId
                         }
                     }
 
                     is DemoEvent.DealerPayoutConfirmed -> {
                         val cur = win
-                        if (cur is WinPhase.Takeover && cur.table == e.table) {
-                            viewModel.emulator.resetJackpot(cur.level)
+                        if (cur is WinPhase.Takeover && cur.table == e.tableId) {
+                            emu?.emulator?.resetJackpot(cur.level)
                             payoutSelectedBox = null
                             win = WinPhase.None
                             revealWinnerBox = false
-                            viewModel.emulator.setPaused(false)
+                            emu?.emulator?.setPaused(false)
                         }
                     }
                 }
@@ -333,7 +356,7 @@ fun MainScreen(viewModel: com.zorindisplays.display.model.MainViewModel = rememb
         if (!takeover) {
             // Ruby
             JackpotAmount(
-                amountMinor = demo.jackpot1,
+                amountMinor = jackpot1,
                 modifier = Modifier
                     .fillMaxWidth()
                     .offset(y = yFor(1))
@@ -355,7 +378,7 @@ fun MainScreen(viewModel: com.zorindisplays.display.model.MainViewModel = rememb
 
             // Gold
             JackpotAmount(
-                amountMinor = demo.jackpot2,
+                amountMinor = jackpot2,
                 modifier = Modifier
                     .fillMaxWidth()
                     .offset(y = yFor(2))
@@ -377,7 +400,7 @@ fun MainScreen(viewModel: com.zorindisplays.display.model.MainViewModel = rememb
 
             // Jade
             JackpotAmount(
-                amountMinor = demo.jackpot3,
+                amountMinor = jackpot3,
                 modifier = Modifier
                     .fillMaxWidth()
                     .offset(y = yFor(3))
@@ -413,14 +436,14 @@ fun MainScreen(viewModel: com.zorindisplays.display.model.MainViewModel = rememb
             if (win is WinPhase.None) {
                 // нормальный режим: твой TableStage со всеми фичами
                 val tableStatesLike = object : TableStatesLike {
-                    override fun isActive(table: Int): Boolean = demo.activeTables.contains(table)
+                    override fun isActive(table: Int): Boolean = activeTables.contains(table)
                     override fun hasBetOnBox(table: Int, box: Int): Boolean =
-                        demo.litBets[table]?.contains(box) == true
+                        litBets[table]?.contains(box) == true
                 }
 
                 TableStage(
                     states = tableStatesLike,
-                    litBets = demo.litBets,
+                    litBets = litBets,
                     modifier = Modifier.fillMaxSize(),
                     tableCount = 8,
                     tableHeight = tableHeight,
@@ -438,7 +461,7 @@ fun MainScreen(viewModel: com.zorindisplays.display.model.MainViewModel = rememb
                     val winColor = jackpotAccent(w.level)
 
                     val winnerOnlyStates = object : TableStatesLike {
-                        override fun isActive(table: Int): Boolean = demo.activeTables.contains(table)
+                        override fun isActive(table: Int): Boolean = activeTables.contains(table)
                         override fun hasBetOnBox(table: Int, box: Int): Boolean {
                             if (!revealWinnerBox) return false
                             return (table == w.table && box == w.box)
@@ -469,7 +492,7 @@ fun MainScreen(viewModel: com.zorindisplays.display.model.MainViewModel = rememb
             val t = win as WinPhase.Takeover
             val bg = jackpotBg(t.level)
             val title = jackpotTitle(t.level)
-            val subtitle = "WAS WON BY BOX ${t.box} AT TABLE ${t.table}"
+            val subtitle = "WAS WON BY BOX ${t.box + 1} AT TABLE ${t.table + 1}"
 
             val tier = remember(t.level) { tierForLevel(t.level) }
             val spec = remember(tier) { tierSpec(tier) }
@@ -702,7 +725,7 @@ fun MainScreen(viewModel: com.zorindisplays.display.model.MainViewModel = rememb
                     contentAlignment = Alignment.BottomCenter
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        BasicText(text = t.table.toString(), style = labelStyle)
+                        BasicText(text = (t.table + 1).toString(), style = labelStyle)
                         Spacer(Modifier.height(10.dp))
 
                         val selected = payoutSelectedBox
@@ -832,12 +855,12 @@ private fun computeBoxCenterInRootPx(
     val tableTopYLocal = (tableHeightPx - bp - tableH).coerceAtLeast(0f)
 
     // boxMap как в TableRowView
-    val boxMap = intArrayOf(7, 8, 9, 4, 5, 6, 1, 2, 3)
+    val boxMap = intArrayOf(6, 7, 8, 3, 4, 5, 0, 1, 2)
     val j = boxMap.indexOf(box).coerceAtLeast(0)
     val row = j / 3
     val col = j % 3
 
-    val i = (table - 1).coerceIn(0, n - 1)
+    val i = table.coerceIn(0, n - 1)
     val left = tableLeftX(i)
 
     val xLocal = left + col * (r * 2f + s) + r

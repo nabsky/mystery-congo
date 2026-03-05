@@ -7,4 +7,14 @@ sealed class DemoEvent {
         val boxId: Int,
         val winAmount: Long,
     ) : DemoEvent()
+
+    data class DealerPayoutBoxSelected(
+        val tableId: Int,
+        val boxId: Int,
+    ) : DemoEvent()
+
+    data class DealerPayoutConfirmed(
+        val tableId: Int,
+        val boxId: Int,
+    ) : DemoEvent()
 }
