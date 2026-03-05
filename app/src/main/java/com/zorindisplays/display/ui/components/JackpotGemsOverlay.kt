@@ -40,9 +40,19 @@ fun JackpotGemsOverlay(
         val offscreenAnchor = Offset(-1f, -1f)
         val offscreenAlpha = 0f
 
+        val wPx = with(density) { maxWidth.toPx() }.coerceAtLeast(1f)
+        val hPx = with(density) { maxHeight.toPx() }.coerceAtLeast(1f)
+        val rubyNudgeDxFrac = 20f / wPx
+        val rubyNudgeDyFrac = -20f / hPx
+        val rubyBaseNone = Offset(0.79f, 0.15f)
+        val rubyNoneAnchor = Offset(
+            rubyBaseNone.x + rubyNudgeDxFrac,
+            rubyBaseNone.y + rubyNudgeDyFrac
+        )
+
         // Ruby
         val rubyParams: Triple<Offset, Float, Float> = when {
-            winPhase == "None" -> Triple(Offset(0.79f, 0.15f), 8f, 0f)
+            winPhase == "None" -> Triple(rubyNoneAnchor, 8f, 0f)
             (winPhase == "Rain" || winPhase == "Focus" || winPhase == "Takeover") && winnerLevel == 1 -> Triple(winnerAnchorBottom, centerRotation, centerBlur)
             else -> Triple(offscreenAnchor, centerRotation, centerBlur)
         }

@@ -39,8 +39,8 @@ fun GemSpotlightsOverlay(
             val h = size.height
             val m = min(w, h)
 
-            fun glow(anchor: Offset, color: Color, alpha: Float, radiusFrac: Float) {
-                val center = Offset(w * anchor.x, h * anchor.y)
+            fun glow(anchor: Offset, color: Color, alpha: Float, radiusFrac: Float, nudgePx: Offset = Offset.Zero) {
+                val center = Offset(w * anchor.x + nudgePx.x, h * anchor.y + nudgePx.y)
                 val r = m * radiusFrac
                 drawCircle(
                     brush = Brush.radialGradient(
@@ -61,7 +61,8 @@ fun GemSpotlightsOverlay(
                 anchor = Offset(0.79f, 0.15f),
                 color = Color(0xFFFF2A2A),
                 alpha = 0.22f,
-                radiusFrac = 0.20f
+                radiusFrac = 0.20f,
+                nudgePx = Offset(20f, -20f)
             )
 
             // Gold
