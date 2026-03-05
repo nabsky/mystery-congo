@@ -44,6 +44,10 @@ class TableDataSource(
     private val lastEventId = AtomicLong(0)
     private var pollingJob: Job? = null
 
+    private var lastSuccessfulSyncTime = 0L
+    private val _isHostOnline = MutableStateFlow(true)
+    val isHostOnline: StateFlow<Boolean> get() = _isHostOnline.asStateFlow()
+
     init {
         scope.launch {
             try {
@@ -56,8 +60,11 @@ class TableDataSource(
                 _state.value = snapshot
                 lastEventId.set(0L)
                 _connectionState.value = ConnectionState.CONNECTED
+                lastSuccessfulSyncTime = System.currentTimeMillis()
+                _isHostOnline.value = true
             } catch (e: Exception) {
                 _connectionState.value = ConnectionState.OFFLINE
+                _isHostOnline.value = false
             }
             startPolling()
         }
@@ -70,12 +77,18 @@ class TableDataSource(
             while (isActive) {
                 val jitter = Random.nextLong(0, 150)
                 delay(backoffMs + jitter)
+                val now = System.currentTimeMillis()
+                if (now - lastSuccessfulSyncTime > 5000) {
+                    _isHostOnline.value = false
+                }
                 try {
                     val afterId = lastEventId.get()
                     val resp: SyncResponse = client.get("$baseUrl/sync?afterEventId=$afterId").body()
                     if (_connectionState.value != ConnectionState.CONNECTED) {
                         _connectionState.value = ConnectionState.CONNECTED
                     }
+                    lastSuccessfulSyncTime = System.currentTimeMillis()
+                    _isHostOnline.value = true
                     if (resp.events.isNotEmpty()) {
                         resp.events.sortedBy { it.eventId }.forEach { event ->
                             lastEventId.set(maxOf(lastEventId.get(), event.eventId))
@@ -92,6 +105,8 @@ class TableDataSource(
                                     // Просто рефетчим /snapshot
                                     val snapshot: DemoState = client.get("$baseUrl/snapshot").body()
                                     _state.value = snapshot
+                                    lastSuccessfulSyncTime = System.currentTimeMillis()
+                                    _isHostOnline.value = true
                                 }
                                 else -> {}
                             }
@@ -100,6 +115,7 @@ class TableDataSource(
                     backoffMs = pollIntervalMs
                 } catch (e: Exception) {
                     _connectionState.value = ConnectionState.OFFLINE
+                    _isHostOnline.value = false
                     backoffMs = when (backoffMs) {
                         in 0..999 -> 1000
                         in 1000..1999 -> 2000
@@ -180,4 +196,3 @@ class TableDataSource(
     @Serializable
     data class ConfirmPayoutRequest(val tableId: Int)
 }
-

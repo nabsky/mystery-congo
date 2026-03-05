@@ -44,11 +44,34 @@ class HostRepository(context: Context) {
     }
 
     suspend fun ensureInitialized() {
-        val state = dao.getGlobalState()
-        if (state == null) {
-            val now = System.currentTimeMillis()
-            db.withTransaction {
-                dao.insertGlobalState(GlobalStateRow(id = 1, stateVersion = 0, lastEventId = 0, updatedAt = now))
+        db.withTransaction {
+
+            val state = dao.getGlobalState()
+
+            if (state == null) {
+                val now = System.currentTimeMillis()
+                dao.insertGlobalState(
+                    GlobalStateRow(
+                        id = 1,
+                        stateVersion = 0,
+                        lastEventId = 0,
+                        updatedAt = now
+                    )
+                )
+            }
+
+            val jackpots = dao.getJackpotState()
+
+            if (jackpots.isEmpty()) {
+                val now = System.currentTimeMillis()
+
+                val rows = listOf(
+                    JackpotStateRow("RUBY", 100_000, now),
+                    JackpotStateRow("GOLD", 20_000, now),
+                    JackpotStateRow("JADE", 5_000, now)
+                )
+
+                dao.setJackpotState(*rows.toTypedArray())
             }
         }
     }
