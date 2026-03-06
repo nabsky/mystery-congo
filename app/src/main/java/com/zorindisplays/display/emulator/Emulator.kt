@@ -156,15 +156,24 @@ class Emulator(
 
     private suspend fun runBetScenario(table: Int) {
         if (paused) return
+
         val count = if (rnd.nextBoolean()) 1 else 2
         val boxes = mutableSetOf<Int>()
         while (boxes.size < count) boxes += rnd.nextInt(0, boxesPerTable)
+
         onBetPreview(table, boxes)
+
+        // игрок "держит" ставки перед confirm
         delay(1200L + rnd.nextLong(-220L, 320L))
         if (paused) return
+
         onBetConfirmed(table)
-        delay(260L + rnd.nextLong(-70L, 90L))
+
+        // ДАЁМ confirm-анимации время:
+        // вспышка + вылет монет + чуть-чуть на визуальное восприятие
+        delay(900L + rnd.nextLong(-120L, 180L))
         if (paused) return
+
         val win = rnd.nextFloat() < 0.055f
         if (win) {
             val roll = rnd.nextFloat()
@@ -173,16 +182,24 @@ class Emulator(
                 roll < 0.37f -> 2
                 else -> 3
             }
+
             val winnerBox = boxes.random(rnd)
             val amountWon = when (level) {
                 1 -> _state.value.jackpots["RUBY"] ?: START_RUBY
                 2 -> _state.value.jackpots["GOLD"] ?: START_GOLD
                 else -> _state.value.jackpots["JADE"] ?: START_JADE
             }
-            emitWin(level = level, table = table, box = winnerBox, amountWon = amountWon)
+
+            emitWin(
+                level = level,
+                table = table,
+                box = winnerBox,
+                amountWon = amountWon
+            )
         } else {
             onNoWinBump()
         }
+
         delay(900L + rnd.nextLong(-240L, 380L))
     }
 
