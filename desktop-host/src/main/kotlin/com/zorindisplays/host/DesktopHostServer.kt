@@ -30,6 +30,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.putJsonArray
 
 private const val TABLE_COUNT = 8
 private const val BOX_COUNT = 9
@@ -201,41 +202,18 @@ private class InMemoryHostEmulator {
 
         val now = System.currentTimeMillis()
 
-        // Для desktop теста: всегда делаем win на первом выбранном боксе.
-        val jackpotId = "RUBY"
-        val winBox = selected.first()
-        val winAmount = demoState.jackpots[jackpotId] ?: START_RUBY
-
         selected.forEach { boxId ->
             recentBoxes[tableId][boxId] = now
         }
         activeBoxes[tableId].clear()
 
-        demoState = demoState.copy(
-            systemMode = DemoState.SystemMode.PAYOUT_PENDING,
-            pendingWin = DemoState.PendingWin(
-                jackpotId = jackpotId,
-                tableId = tableId,
-                boxId = winBox,
-                winAmount = winAmount
-            )
-        )
-        rebuildStateLocked(preserveModeAndPending = true)
+        rebuildStateLocked()
 
         addEventLocked(
             type = "BetsConfirmed",
             payload = mapOf(
-                "tableId" to tableId
-            )
-        )
-
-        addEventLocked(
-            type = "JackpotHitDetected",
-            payload = mapOf(
-                "jackpotId" to jackpotId,
                 "tableId" to tableId,
-                "boxId" to winBox,
-                "winAmount" to winAmount
+                "boxIds" to selected
             )
         )
     }
@@ -381,6 +359,19 @@ private class InMemoryHostEmulator {
                     is String -> put(key, JsonPrimitive(value))
                     is Number -> put(key, JsonPrimitive(value))
                     is Boolean -> put(key, JsonPrimitive(value))
+                    is Iterable<*> -> {
+                        putJsonArray(key) {
+                            value.forEach { item ->
+                                when (item) {
+                                    is String -> add(JsonPrimitive(item))
+                                    is Number -> add(JsonPrimitive(item))
+                                    is Boolean -> add(JsonPrimitive(item))
+                                    null -> add(JsonPrimitive("null"))
+                                    else -> add(JsonPrimitive(item.toString()))
+                                }
+                            }
+                        }
+                    }
                     else -> put(key, JsonPrimitive(value.toString()))
                 }
             }
