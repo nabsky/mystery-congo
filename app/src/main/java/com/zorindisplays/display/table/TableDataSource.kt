@@ -132,31 +132,10 @@ class TableDataSource(
 
                             when (event.type) {
                                 "BoxToggled" -> {
-                                    try {
-                                        val obj = Json.parseToJsonElement(event.payloadJson).jsonObject
-                                        val eventTableId = obj["tableId"]?.jsonPrimitive?.int ?: 0
-                                        val eventBoxId = obj["boxId"]?.jsonPrimitive?.int ?: 0
-
-                                        val current = _state.value
-                                        val newTables = current.tables.map { t ->
-                                            if (t.tableId == eventTableId) {
-                                                val newActive =
-                                                    if (t.activeBoxes.contains(eventBoxId)) {
-                                                        t.activeBoxes - eventBoxId
-                                                    } else {
-                                                        t.activeBoxes + eventBoxId
-                                                    }
-                                                t.copy(activeBoxes = newActive)
-                                            } else {
-                                                t
-                                            }
-                                        }
-                                        _state.value = current.copy(tables = newTables)
-                                    } catch (e: Exception) {
-                                        Log.e("TableDataSource", "Error processing BoxToggled", e)
-                                        val snapshot: DemoState = client.get("$baseUrl/snapshot").body()
-                                        _state.value = snapshot
-                                    }
+                                    val snapshot: DemoState = client.get("$baseUrl/snapshot").body()
+                                    _state.value = snapshot
+                                    lastSuccessfulSyncTime = System.currentTimeMillis()
+                                    _isHostOnline.value = true
                                 }
 
                                 "BetsConfirmed" -> {
@@ -197,19 +176,10 @@ class TableDataSource(
                                 }
 
                                 "PayoutConfirmed" -> {
-                                    val obj = Json.parseToJsonElement(event.payloadJson).jsonObject
-                                    val eventTableId = obj["tableId"]?.jsonPrimitive?.int ?: 0
-                                    val eventBoxId = obj["boxId"]?.jsonPrimitive?.int ?: 0
-
-                                    _events.tryEmit(
-                                        DemoEvent.DealerPayoutConfirmed(
-                                            tableId = eventTableId,
-                                            boxId = eventBoxId
-                                        )
-                                    )
-
                                     val snapshot: DemoState = client.get("$baseUrl/snapshot").body()
                                     _state.value = snapshot
+                                    lastSuccessfulSyncTime = System.currentTimeMillis()
+                                    _isHostOnline.value = true
                                 }
 
                                 else -> {
