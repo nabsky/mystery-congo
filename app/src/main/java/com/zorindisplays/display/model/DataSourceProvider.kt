@@ -37,12 +37,24 @@ class DataSourceProvider(
                 // Return wrapper
                 HostDataSourceWrapper(ds, server)
             }
-            DeviceRole.TABLE ->
+            DeviceRole.TABLE -> {
+                var url = config.hostUrl
+                if (!url.startsWith("http")) {
+                    url = "http://$url"
+                }
+                // Basic check for port: if no colon after protocol, add default 8080
+                // This handles "10.0.2.2" -> "http://10.0.2.2:8080"
+                // And "10.0.2.2:9000" -> "http://10.0.2.2:9000"
+                if (!url.substringAfter("://").contains(":")) {
+                    url = "$url:8080"
+                }
+
                 TableDataSource(
-                    baseUrl = config.hostUrl,
+                    baseUrl = url,
                     tableId = config.tableId,
                     scope = scope
                 )
+            }
             else -> throw IllegalStateException("Role must be set before creating data source")
         }
     }
