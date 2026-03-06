@@ -107,7 +107,7 @@ class TableDataSource(
                 }
                 // GET /snapshot
                 Log.d("TableDataSource", "Fetching snapshot from $baseUrl/snapshot")
-                val remoteSnapshot: RemoteSnapshot = client.get("$baseUrl/snapshot").body()
+                val remoteSnapshot: RemoteSnapshot = client.get("$baseUrl/snapshot?tableId=$tableId").body()
                 val snapshot = remoteSnapshot.toDomain()
                 Log.d("TableDataSource", "Snapshot received & parsed: $snapshot")
                 _state.value = snapshot
@@ -140,7 +140,7 @@ class TableDataSource(
                 try {
                     val afterId = lastEventId.get()
                     // Log.v("TableDataSource", "Syncing events after $afterId") // verbose logging if needed
-                    val resp: SyncResponse = client.get("$baseUrl/sync?afterEventId=$afterId").body()
+                    val resp: SyncResponse = client.get("$baseUrl/sync?afterEventId=$afterId&tableId=$tableId").body()
                     if (_connectionState.value != ConnectionState.CONNECTED) {
                         Log.i("TableDataSource", "Reconnected to host")
                         _connectionState.value = ConnectionState.CONNECTED
@@ -178,12 +178,12 @@ class TableDataSource(
                                     } catch(e: Exception) {
                                         Log.e("TableDataSource", "Error processing BoxToggled", e)
                                         // Fallback
-                                        val rs: RemoteSnapshot = client.get("$baseUrl/snapshot").body()
+                                        val rs: RemoteSnapshot = client.get("$baseUrl/snapshot?tableId=$tableId").body()
                                         _state.value = rs.toDomain()
                                     }
                                 }
                                 "TableConfirmed" -> {
-                                     val rs: RemoteSnapshot = client.get("$baseUrl/snapshot").body()
+                                     val rs: RemoteSnapshot = client.get("$baseUrl/snapshot?tableId=$tableId").body()
                                     _state.value = rs.toDomain()
                                 }
                                 "JackpotHitDetected" -> {
@@ -211,12 +211,12 @@ class TableDataSource(
                                     _events.tryEmit(DemoEvent.DealerPayoutConfirmed(tableId, boxId))
 
                                     // Also refresh snapshot just in case state changed
-                                    val rs: RemoteSnapshot = client.get("$baseUrl/snapshot").body()
+                                    val rs: RemoteSnapshot = client.get("$baseUrl/snapshot?tableId=$tableId").body()
                                     _state.value = rs.toDomain()
                                 }
                                 "BetsConfirmed" -> {
                                     // Просто рефетчим /snapshot
-                                    val rs: RemoteSnapshot = client.get("$baseUrl/snapshot").body()
+                                    val rs: RemoteSnapshot = client.get("$baseUrl/snapshot?tableId=$tableId").body()
                                     _state.value = rs.toDomain()
                                     lastSuccessfulSyncTime = System.currentTimeMillis()
                                     _isHostOnline.value = true
