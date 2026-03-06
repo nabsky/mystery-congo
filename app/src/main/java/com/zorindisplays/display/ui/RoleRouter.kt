@@ -86,7 +86,6 @@ fun RoleRouter() {
         // Create DataSource
         // We use a key to recreate the ViewModel if config changes
         key(role, savedHostUrl, tableId) {
-
             val factory = object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -97,6 +96,15 @@ fun RoleRouter() {
 
             // Re-keying ViewModel ensures we get a fresh instance
             val vm: MainViewModel = viewModel(key = "${role.name}|${savedHostUrl}|${tableId}", factory = factory)
+            DisposableEffect(tableId) {
+                // При смене tableId явно вызываем stop() для старого dataSource
+                onDispose {
+                    // Исправлено: вызываем stop() внутри coroutine
+                    scope.launch {
+                        vm.dataSource.stop()
+                    }
+                }
+            }
             MainScreen(
                 viewModel = vm,
                 tableId = tableId,

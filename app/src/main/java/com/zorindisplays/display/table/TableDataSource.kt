@@ -237,9 +237,13 @@ class TableDataSource(
         }
     }
 
-    override fun start(scope: CoroutineScope) { /* no-op */ }
+    override fun start(scope: CoroutineScope) {
+        Log.d("TableDataSource", "start() called for tableId=$tableId")
+        // ...existing code...
+    }
 
     override suspend fun stop() {
+        Log.d("TableDataSource", "stop() called for tableId=$tableId")
         pollingJob?.cancel()
         client.close()
     }
