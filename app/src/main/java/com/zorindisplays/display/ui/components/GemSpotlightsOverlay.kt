@@ -54,6 +54,7 @@ fun GemSpotlightsOverlay(
     }
 
     BoxWithConstraints(modifier = modifier) {
+        val scope = this
         Canvas(Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
