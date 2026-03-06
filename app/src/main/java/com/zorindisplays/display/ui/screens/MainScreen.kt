@@ -128,8 +128,8 @@ fun MainScreen(
     }
 
     // --- Универсальная нормализация tableId/boxId (0-based) ---
-    fun normTable0(raw: Int): Int = when (raw) { in 1..8 -> raw - 1 else -> raw }.coerceIn(0, 7)
-    fun normBox0(raw: Int): Int = when (raw) { in 1..9 -> raw - 1 else -> raw }.coerceIn(0, 8)
+    fun normTable0(raw: Int): Int = raw
+    fun normBox0(raw: Int): Int = raw
 
     var winJackpotAmountMinor by remember { mutableStateOf<Long?>(null) }
     var winJackpotLevel by remember { mutableStateOf<Int?>(null) }
@@ -156,7 +156,7 @@ fun MainScreen(
 
                     // Check for Jackpot Payout Mode (Takeover)
                     val currentWin = win
-                    if (currentWin is WinPhase.Takeover && currentWin.table == normTable0(tableId)) {
+                    if (currentWin is WinPhase.Takeover && currentWin.table == tableId) {
                         if (boxIdx >= 0) {
                              uiScope.launch { dataSource.selectPayoutBox(tableId, boxIdx) }
                              return@onKeyEvent true
