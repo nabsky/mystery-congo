@@ -72,7 +72,7 @@ fun TableRowView(
 ) {
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
-    val boxMap = remember { intArrayOf(7, 8, 9, 4, 5, 6, 1, 2, 3) }
+    val boxMap = remember { intArrayOf(6, 7, 8, 3, 4, 5, 0, 1, 2) }
 
     val hPx = with(density) { height.toPx() }
     val hp = with(density) { horizontalPadding.toPx() }
@@ -126,7 +126,7 @@ fun TableRowView(
             val left = tableLeftX(i)
             val centerX = tableCenterX(i)
 
-            val isActive = states?.isActive(i + 1) == true
+            val isActive = states?.isActive(i) == true
 
             for (j in 0 until 9) {
                 val row = j / 3
@@ -136,16 +136,16 @@ fun TableRowView(
                 val y = tableTopY + row * (r * 2f + s)
                 val c = Offset(x + r, y + r)
 
-                centers?.put((i + 1) to boxMap[j], c)
+                centers?.put(i to boxMap[j], c)
 
-                val hasBet = isActive && (states?.hasBetOnBox(i + 1, boxMap[j]) == true)
+                val hasBet = isActive && (states?.hasBetOnBox(i, boxMap[j]) == true)
 
                 if (isActive) {
                     if (hasBet) {
-                        val fill = betFillOverride?.invoke(i + 1, boxMap[j]) ?: colors.bet
+                        val fill = betFillOverride?.invoke(i, boxMap[j]) ?: colors.bet
                         drawCircle(fill, r, c, style = Fill)
                     } else {
-                        val strokeColor = ringStrokeOverride?.invoke(i + 1, boxMap[j]) ?: colors.active
+                        val strokeColor = ringStrokeOverride?.invoke(i, boxMap[j]) ?: colors.active
                         drawCircle(strokeColor, r, c, style = Stroke(width = border))
                     }
                 } else {
