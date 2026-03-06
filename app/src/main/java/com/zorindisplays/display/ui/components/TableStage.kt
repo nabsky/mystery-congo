@@ -29,6 +29,7 @@ fun TableStage(
     states: TableStatesLike,
     // preview подсветки (могут быть у нескольких столов одновременно)
     litBets: Map<Int, Set<Int>>,
+    confirmedBurst: Map<Int, Set<Int>> = emptyMap(),
     modifier: Modifier = Modifier,
     tableCount: Int = 8,
     tableHeight: Dp,
@@ -106,66 +107,47 @@ fun TableStage(
     }
 
     /**
-     * Триггер на CONFIRM:
-     * если у какого-то стола была подсветка, а теперь её нет -> confirm.
      * На confirm:
      * 1) burst монет из старых боксов
      * 2) flash этих боксов на confirmFlashMs
      */
-    LaunchedEffect(litBets, centersLocal, tableOriginInRoot, targetInRoot) {
-        val old = lastLitBets
-        val now = litBets
+    LaunchedEffect(confirmedBurst, centersLocal, tableOriginInRoot, targetInRoot) {
+        if (confirmedBurst.isEmpty()) return@LaunchedEffect
+        if (centersLocal.isEmpty()) return@LaunchedEffect
 
-        if (centersLocal.isNotEmpty() && old.isNotEmpty()) {
-            // какие столы “подтвердились”
-            val confirmedTables = old.keys.filter { t ->
-                val was = old[t].orEmpty()
-                val isNow = now[t].orEmpty()
-                was.isNotEmpty() && isNow.isEmpty()
-            }
-
-            if (confirmedTables.isNotEmpty()) {
-                // 1) монеты: собираем все sources одним burst
-                val sources = buildList {
-                    for (t in confirmedTables) {
-                        for (b in old[t].orEmpty()) {
-                            val c = centersLocal[(t to b)] ?: continue
-                            add(Offset(tableOriginInRoot.x + c.x, tableOriginInRoot.y + c.y))
-                        }
-                    }
+        val sources = buildList {
+            for ((t, boxes) in confirmedBurst) {
+                for (b in boxes) {
+                    val c = centersLocal[(t to b)] ?: continue
+                    add(Offset(tableOriginInRoot.x + c.x, tableOriginInRoot.y + c.y))
                 }
-
-                if (sources.isNotEmpty()) {
-                    burst = CoinBurst(
-                        sourcesInRoot = sources,
-                        targetInRoot = targetInRoot
-                    )
-                }
-
-                // 2) flash: держим старые боксы ещё чуть-чуть
-                val token = System.nanoTime()
-                flashToken = token
-                flashBets = confirmedTables.associateWith { old[it].orEmpty() }
-
-                // авто-гашение флэша
-                launch {
-                    delay(confirmFlashMs)
-                    if (flashToken == token) flashBets = emptyMap()
-                }
-
-                // 3) старт "пожелтения" кольца для конкретных подтвержденных боксов
-                val stamp = System.currentTimeMillis()
-                val m = lastConfirmedAtMs.toMutableMap()
-                for (t in confirmedTables) {
-                    for (b in old[t].orEmpty()) {
-                        m[t to b] = stamp
-                    }
-                }
-                lastConfirmedAtMs = m
             }
         }
 
-        lastLitBets = litBets
+        if (sources.isNotEmpty()) {
+            burst = CoinBurst(
+                sourcesInRoot = sources,
+                targetInRoot = targetInRoot
+            )
+        }
+
+        val token = System.nanoTime()
+        flashToken = token
+        flashBets = confirmedBurst
+
+        launch {
+            delay(confirmFlashMs)
+            if (flashToken == token) flashBets = emptyMap()
+        }
+
+        val stamp = System.currentTimeMillis()
+        val m = lastConfirmedAtMs.toMutableMap()
+        for ((t, boxes) in confirmedBurst) {
+            for (b in boxes) {
+                m[t to b] = stamp
+            }
+        }
+        lastConfirmedAtMs = m
     }
 
     Box(

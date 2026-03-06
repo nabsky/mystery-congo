@@ -17,4 +17,9 @@ sealed class DemoEvent {
         val tableId: Int,
         val boxId: Int,
     ) : DemoEvent()
+
+    data class BetsConfirmed(
+        val tableId: Int,
+        val boxIds: Set<Int>
+    ) : DemoEvent()
 }

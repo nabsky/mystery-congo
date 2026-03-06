@@ -116,6 +116,7 @@ fun MainScreen(
     // burst монет из центра джекпотов -> в выигравший бокс
     var winBurst by remember { mutableStateOf<CoinBurst?>(null) }
     var rain by remember { mutableStateOf<RainRequest?>(null) }
+    var confirmedBurst by remember { mutableStateOf<Map<Int, Set<Int>>>(emptyMap()) }
 
     // интрига: winner box подсвечиваем только ПОСЛЕ того, как монетки "втекли" в него
     var revealWinnerBox by remember { mutableStateOf(false) }
@@ -128,8 +129,8 @@ fun MainScreen(
     }
 
     // --- Универсальная нормализация tableId/boxId (0-based) ---
-    fun normTable0(raw: Int): Int = raw
-    fun normBox0(raw: Int): Int = raw
+    fun normTable0(raw: Int): Int = raw.coerceIn(0, 7)
+    fun normBox0(raw: Int): Int = raw.coerceIn(0, 8)
 
     var winJackpotAmountMinor by remember { mutableStateOf<Long?>(null) }
     var winJackpotLevel by remember { mutableStateOf<Int?>(null) }
@@ -285,6 +286,16 @@ fun MainScreen(
                             winJackpotAmountMinor = null
                             emu?.emulator?.setPaused(false)
                         }
+                    }
+
+                    is DemoEvent.BetsConfirmed -> {
+                        val tId = normTable0(e.tableId)
+                        val boxes = e.boxIds.map { normBox0(it) }.toSet()
+                        confirmedBurst = mapOf(tId to boxes)
+
+                        // чтобы повторный confirm того же набора тоже триггерился
+                        delay(16)
+                        confirmedBurst = emptyMap()
                     }
                 }
             }
@@ -587,6 +598,7 @@ fun MainScreen(
                 TableStage(
                     states = tableStatesLike,
                     litBets = litBets,
+                    confirmedBurst = confirmedBurst,
                     modifier = Modifier.fillMaxSize(),
                     tableCount = 8,
                     tableHeight = tableHeight,

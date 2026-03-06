@@ -28,6 +28,8 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.int
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
@@ -143,7 +145,21 @@ class TableDataSource(
                                 }
 
                                 "BetsConfirmed" -> {
-                                    val snapshot: DemoState = client.get(snapshotUrl()).body()
+                                    val obj = Json.parseToJsonElement(event.payloadJson).jsonObject
+                                    val eventTableId = obj["tableId"]?.jsonPrimitive?.int ?: 0
+                                    val boxIds = obj["boxIds"]?.jsonArray
+                                        ?.mapNotNull { it.jsonPrimitive.intOrNull }
+                                        ?.toSet()
+                                        ?: emptySet()
+
+                                    _events.tryEmit(
+                                        DemoEvent.BetsConfirmed(
+                                            tableId = eventTableId,
+                                            boxIds = boxIds
+                                        )
+                                    )
+
+                                    val snapshot: DemoState = client.get("$baseUrl/snapshot?tableId=$tableId").body()
                                     _state.value = snapshot
                                     lastSuccessfulSyncTime = System.currentTimeMillis()
                                     _isHostOnline.value = true
