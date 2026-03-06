@@ -30,6 +30,7 @@ fun TableStage(
     // preview подсветки (могут быть у нескольких столов одновременно)
     litBets: Map<Int, Set<Int>>,
     confirmedBurst: Map<Int, Set<Int>> = emptyMap(),
+    confirmToken: Long = 0L,
     modifier: Modifier = Modifier,
     tableCount: Int = 8,
     tableHeight: Dp,
@@ -111,7 +112,8 @@ fun TableStage(
      * 1) burst монет из старых боксов
      * 2) flash этих боксов на confirmFlashMs
      */
-    LaunchedEffect(confirmedBurst, centersLocal, tableOriginInRoot, targetInRoot) {
+    LaunchedEffect(confirmToken, centersLocal, tableOriginInRoot, targetInRoot) {
+        if (confirmToken == 0L) return@LaunchedEffect
         if (confirmedBurst.isEmpty()) return@LaunchedEffect
         if (centersLocal.isEmpty()) return@LaunchedEffect
 

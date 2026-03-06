@@ -117,6 +117,7 @@ fun MainScreen(
     var winBurst by remember { mutableStateOf<CoinBurst?>(null) }
     var rain by remember { mutableStateOf<RainRequest?>(null) }
     var confirmedBurst by remember { mutableStateOf<Map<Int, Set<Int>>>(emptyMap()) }
+    var confirmToken by remember { mutableLongStateOf(0L) }
 
     // интрига: winner box подсвечиваем только ПОСЛЕ того, как монетки "втекли" в него
     var revealWinnerBox by remember { mutableStateOf(false) }
@@ -289,13 +290,16 @@ fun MainScreen(
                     }
 
                     is DemoEvent.BetsConfirmed -> {
+                        android.util.Log.d(
+                            "MainScreen",
+                            "BetsConfirmed raw tableId=${e.tableId} boxIds=${e.boxIds}"
+                        )
+
                         val tId = normTable0(e.tableId)
                         val boxes = e.boxIds.map { normBox0(it) }.toSet()
-                        confirmedBurst = mapOf(tId to boxes)
 
-                        // чтобы повторный confirm того же набора тоже триггерился
-                        delay(16)
-                        confirmedBurst = emptyMap()
+                        confirmedBurst = mapOf(tId to boxes)
+                        confirmToken = System.nanoTime()
                     }
                 }
             }
@@ -599,6 +603,7 @@ fun MainScreen(
                     states = tableStatesLike,
                     litBets = litBets,
                     confirmedBurst = confirmedBurst,
+                    confirmToken = confirmToken,
                     modifier = Modifier.fillMaxSize(),
                     tableCount = 8,
                     tableHeight = tableHeight,
