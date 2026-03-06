@@ -1,225 +1,381 @@
 package com.zorindisplays.host
 
-import com.zorindisplays.host.model.*
+import com.zorindisplays.host.model.ConfirmPayoutRequest
+import com.zorindisplays.host.model.ConfirmRequest
+import com.zorindisplays.host.model.DemoState
+import com.zorindisplays.host.model.SelectPayoutBoxRequest
+import com.zorindisplays.host.model.SyncEvent
+import com.zorindisplays.host.model.SyncResponse
+import com.zorindisplays.host.model.ToggleRequest
+import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.Application
+import io.ktor.server.application.call
+import io.ktor.server.application.install
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
-import io.ktor.server.application.*
-import io.ktor.server.plugins.contentnegotiation.*
-import io.ktor.server.routing.*
-import io.ktor.server.request.*
-import io.ktor.server.response.*
-import kotlinx.serialization.json.Json
-import io.ktor.serialization.kotlinx.json.*
-import java.util.concurrent.atomic.AtomicLong
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.request.receive
+import io.ktor.server.response.respond
+import io.ktor.server.routing.get
+import io.ktor.server.routing.post
+import io.ktor.server.routing.routing
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.Serializable
-import kotlin.system.exitProcess
+
+private const val TABLE_COUNT = 8
+private const val BOX_COUNT = 9
+private const val TABLE_ACTIVE_TIMEOUT_MS = 5_000L
+
+private const val START_RUBY = 100_000L
+private const val START_GOLD = 20_000L
+private const val START_JADE = 5_000L
 
 fun main() {
     val host = InMemoryHostEmulator()
-    println("[DesktopHost] Запуск сервера...")
+
+    println("[DesktopHost] Starting on 0.0.0.0:8080")
+
     embeddedServer(Netty, port = 8080, host = "0.0.0.0") {
-        install(ContentNegotiation) {
-            json(Json { ignoreUnknownKeys = true })
-        }
-        routing {
-            get("/health") {
-                println("[DesktopHost] GET /health")
-                call.respond(mapOf("status" to "ok"))
-            }
-            get("/snapshot") {
-                val tableIdParam = call.request.queryParameters["tableId"]?.toIntOrNull()
-                println("[DesktopHost] GET /snapshot tableId=$tableIdParam")
-                if (tableIdParam != null) {
-                    host.setActiveTable(tableIdParam)
-                }
-                call.respond(host.getRemoteSnapshot())
-            }
-            get("/sync") {
-                val afterEventId = call.request.queryParameters["afterEventId"]?.toLongOrNull() ?: 0L
-                val tableIdParam = call.request.queryParameters["tableId"]?.toIntOrNull()
-                println("[DesktopHost] GET /sync afterEventId=$afterEventId tableId=$tableIdParam")
-                if (tableIdParam != null) {
-                    host.setActiveTable(tableIdParam)
-                }
-                call.respond(host.getSync(afterEventId))
-            }
-            post("/input/toggle") {
-                val req = call.receive<ToggleRequest>()
-                println("[DesktopHost] POST /input/toggle tableId=${req.tableId} boxId=${req.boxId}")
-                host.toggleBox(req.tableId, req.boxId)
-                call.respond(mapOf("ok" to true))
-            }
-            post("/input/confirm") {
-                val req = call.receive<ConfirmRequest>()
-                println("[DesktopHost] POST /input/confirm tableId=${req.tableId}")
-                host.confirmBets(req.tableId)
-                call.respond(mapOf("ok" to true))
-            }
-            post("/input/payout/selectBox") {
-                val req = call.receive<SelectPayoutBoxRequest>()
-                println("[DesktopHost] POST /input/payout/selectBox tableId=${req.tableId} boxId=${req.boxId}")
-                host.selectPayoutBox(req.tableId, req.boxId)
-                call.respond(mapOf("ok" to true))
-            }
-            post("/input/payout/confirm") {
-                val req = call.receive<ConfirmPayoutRequest>()
-                println("[DesktopHost] POST /input/payout/confirm tableId=${req.tableId}")
-                host.confirmPayout(req.tableId)
-                call.respond(mapOf("ok" to true))
-            }
-            post("/setActiveTable") {
-                val req = call.receive<SetActiveTableRequest>()
-                println("[DesktopHost] POST /setActiveTable tableId=${req.tableId}")
-                host.setActiveTable(req.tableId)
-                call.respond(mapOf("ok" to true))
-            }
-        }
+        module(host)
     }.start(wait = true)
+}
+
+private fun Application.module(host: InMemoryHostEmulator) {
+    install(ContentNegotiation) {
+        json(
+            Json {
+                prettyPrint = true
+                ignoreUnknownKeys = true
+                encodeDefaults = true
+            }
+        )
+    }
+
+    routing {
+        get("/health") {
+            call.respond(
+                mapOf(
+                    "ok" to true,
+                    "stateVersion" to host.currentStateVersion(),
+                    "lastEventId" to host.currentLastEventId()
+                )
+            )
+        }
+
+        get("/snapshot") {
+            val tableIdParam = call.request.queryParameters["tableId"]?.toIntOrNull()
+            if (tableIdParam != null) {
+                host.markActive(tableIdParam)
+            }
+            call.respond(host.getSnapshot())
+        }
+
+        get("/sync") {
+            val afterEventId = call.request.queryParameters["afterEventId"]?.toLongOrNull() ?: 0L
+            val tableIdParam = call.request.queryParameters["tableId"]?.toIntOrNull()
+            if (tableIdParam != null) {
+                host.markActive(tableIdParam)
+            }
+            call.respond(host.getSync(afterEventId))
+        }
+
+        post("/input/toggle") {
+            val req = call.receive<ToggleRequest>()
+            host.toggleBox(req.tableId, req.boxId)
+            call.respond(mapOf("ok" to true))
+        }
+
+        post("/input/confirm") {
+            val req = call.receive<ConfirmRequest>()
+            host.confirmBets(req.tableId)
+            call.respond(mapOf("ok" to true))
+        }
+
+        post("/input/payout/selectBox") {
+            val req = call.receive<SelectPayoutBoxRequest>()
+            host.selectPayoutBox(req.tableId, req.boxId)
+            call.respond(mapOf("ok" to true))
+        }
+
+        post("/input/payout/confirm") {
+            val req = call.receive<ConfirmPayoutRequest>()
+            host.confirmPayout(req.tableId)
+            call.respond(mapOf("ok" to true))
+        }
+
+        // Не нужен Android TABLE, но удобно для ручных тестов
+        post("/setActiveTable") {
+            val req = call.receive<SetActiveTableRequest>()
+            host.markActive(req.tableId)
+            call.respond(mapOf("ok" to true))
+        }
+    }
 }
 
 @Serializable
 data class SetActiveTableRequest(val tableId: Int)
 
-class InMemoryHostEmulator {
+private class InMemoryHostEmulator {
     private val mutex = Mutex()
-    private var stateVersion = 1L
-    private var lastEventId = 1L
+
+    private var stateVersion = 0L
+    private var lastEventId = 0L
+
+    private val lastActivity = LongArray(TABLE_COUNT) { 0L }
+    private val activeBoxes = Array(TABLE_COUNT) { mutableSetOf<Int>() }
+    private val recentBoxes = Array(TABLE_COUNT) { mutableMapOf<Int, Long>() }
+
+    private val events = mutableListOf<SyncEvent>()
+
     private var demoState = DemoState(
-        tables = (0..7).map { DemoState.Table(tableId = it, activeBoxes = emptySet(), recentBoxes = emptySet(), isActive = false) },
-        jackpots = mapOf("RUBY" to 1000L, "GOLD" to 2000L, "JADE" to 3000L),
+        tables = (0 until TABLE_COUNT).map { tableId ->
+            DemoState.Table(
+                tableId = tableId,
+                activeBoxes = emptySet(),
+                recentBoxes = emptySet(),
+                isActive = false
+            )
+        },
+        jackpots = mapOf(
+            "RUBY" to START_RUBY,
+            "GOLD" to START_GOLD,
+            "JADE" to START_JADE
+        ),
         systemMode = DemoState.SystemMode.ACCEPTING_BETS,
         pendingWin = null
     )
-    private val events = mutableListOf<SyncEvent>()
-    private val lastRequestTime = mutableMapOf<Int, Long>() // tableId -> last request ts
-
-    private fun markTableActive(tableId: Int) {
-        val now = System.currentTimeMillis()
-        lastRequestTime[tableId] = now
-        demoState = demoState.copy(
-            tables = demoState.tables.map {
-                if (it.tableId == tableId) it.copy(isActive = true)
-                else it
-            }
-        )
-    }
-
-    private fun checkInactiveTables() {
-        val now = System.currentTimeMillis()
-        demoState = demoState.copy(
-            tables = demoState.tables.map {
-                val lastTs = lastRequestTime[it.tableId] ?: 0L
-                if (it.isActive && now - lastTs > 5000) it.copy(isActive = false) else it
-            }
-        )
-    }
 
     suspend fun toggleBox(tableId: Int, boxId: Int) = mutex.withLock {
-        markTableActive(tableId)
-        val table = demoState.tables.find { it.tableId == tableId } ?: return
-        val newActive = if (table.activeBoxes.contains(boxId)) {
-            table.activeBoxes - boxId
-        } else {
-            table.activeBoxes + boxId
+        require(tableId in 0 until TABLE_COUNT) { "Invalid tableId=$tableId" }
+        require(boxId in 0 until BOX_COUNT) { "Invalid boxId=$boxId" }
+        check(demoState.systemMode == DemoState.SystemMode.ACCEPTING_BETS) {
+            "System is not accepting bets"
         }
-        demoState = demoState.copy(
-            tables = demoState.tables.map {
-                if (it.tableId == tableId) it.copy(activeBoxes = newActive)
-                else it
+
+        markActiveLocked(tableId)
+
+        if (activeBoxes[tableId].contains(boxId)) {
+            activeBoxes[tableId].remove(boxId)
+        } else {
+            if (activeBoxes[tableId].isEmpty()) {
+                recentBoxes[tableId].clear()
             }
+            activeBoxes[tableId].add(boxId)
+        }
+
+        rebuildStateLocked()
+
+        addEventLocked(
+            type = "BoxToggled",
+            payload = mapOf(
+                "tableId" to tableId,
+                "boxId" to boxId
+            )
         )
-        addEvent("BoxToggled", mapOf("tableId" to tableId, "boxId" to boxId))
     }
 
     suspend fun confirmBets(tableId: Int) = mutex.withLock {
-        markTableActive(tableId)
-        demoState = demoState.copy(systemMode = DemoState.SystemMode.PAYOUT_PENDING)
-        addEvent("BetsConfirmed", mapOf("tableId" to tableId))
-    }
+        require(tableId in 0 until TABLE_COUNT) { "Invalid tableId=$tableId" }
+        check(demoState.systemMode == DemoState.SystemMode.ACCEPTING_BETS) {
+            "System is not accepting bets"
+        }
 
-    suspend fun selectPayoutBox(tableId: Int, boxId: Int) = mutex.withLock {
-        markTableActive(tableId)
-        demoState = demoState.copy(pendingWin = DemoState.PendingWin(
-            jackpotId = "RUBY",
-            tableId = tableId,
-            boxId = boxId,
-            winAmount = 1000L
-        ))
-        addEvent("PayoutSelectedBox", mapOf("tableId" to tableId, "boxId" to boxId))
-    }
+        markActiveLocked(tableId)
 
-    suspend fun confirmPayout(tableId: Int) = mutex.withLock {
-        markTableActive(tableId)
-        demoState = demoState.copy(pendingWin = null, systemMode = DemoState.SystemMode.ACCEPTING_BETS)
-        addEvent("PayoutConfirmed", mapOf("tableId" to tableId))
-    }
+        val selected = activeBoxes[tableId].toList().sorted()
+        if (selected.isEmpty()) return
 
-    suspend fun setActiveTable(tableId: Int) = mutex.withLock {
-        markTableActive(tableId)
-    }
+        val now = System.currentTimeMillis()
 
-    fun getRemoteSnapshot(): RemoteSnapshot {
-        checkInactiveTables()
-        // Преобразуем DemoState в RemoteSnapshot (1-based id, boxes, status)
-        return RemoteSnapshot(
-            tables = demoState.tables.map { table ->
-                RemoteTable(
-                    id = table.tableId + 1, // 1-based
-                    boxes = (0..8).map { boxId ->
-                        RemoteBox(
-                            id = boxId + 1, // 1-based
-                            isSelected = table.activeBoxes.contains(boxId)
-                        )
-                    },
-                    status = if (table.isActive) "BETTING" else "OFFLINE"
-                )
-            },
-            jackpots = demoState.jackpots,
-            systemMode = demoState.systemMode.name
+        // Для desktop теста: всегда делаем win на первом выбранном боксе.
+        val jackpotId = "RUBY"
+        val winBox = selected.first()
+        val winAmount = demoState.jackpots[jackpotId] ?: START_RUBY
+
+        selected.forEach { boxId ->
+            recentBoxes[tableId][boxId] = now
+        }
+        activeBoxes[tableId].clear()
+
+        demoState = demoState.copy(
+            systemMode = DemoState.SystemMode.PAYOUT_PENDING,
+            pendingWin = DemoState.PendingWin(
+                jackpotId = jackpotId,
+                tableId = tableId,
+                boxId = winBox,
+                winAmount = winAmount
+            )
+        )
+        rebuildStateLocked(preserveModeAndPending = true)
+
+        addEventLocked(
+            type = "BetsConfirmed",
+            payload = mapOf(
+                "tableId" to tableId
+            )
+        )
+
+        addEventLocked(
+            type = "JackpotHitDetected",
+            payload = mapOf(
+                "jackpotId" to jackpotId,
+                "tableId" to tableId,
+                "boxId" to winBox,
+                "winAmount" to winAmount
+            )
         )
     }
 
-    fun getSync(afterEventId: Long): SyncResponse {
-        checkInactiveTables()
+    suspend fun selectPayoutBox(tableId: Int, boxId: Int) = mutex.withLock {
+        require(tableId in 0 until TABLE_COUNT) { "Invalid tableId=$tableId" }
+        require(boxId in 0 until BOX_COUNT) { "Invalid boxId=$boxId" }
+
+        markActiveLocked(tableId)
+
+        val pending = demoState.pendingWin ?: error("No pending win")
+        check(demoState.systemMode == DemoState.SystemMode.PAYOUT_PENDING) {
+            "System is not in PAYOUT_PENDING"
+        }
+        check(pending.tableId == tableId) {
+            "Pending win belongs to table ${pending.tableId}, not $tableId"
+        }
+
+        demoState = demoState.copy(
+            pendingWin = pending.copy(boxId = boxId)
+        )
+
+        addEventLocked(
+            type = "PayoutSelectedBox",
+            payload = mapOf(
+                "tableId" to tableId,
+                "boxId" to boxId
+            )
+        )
+    }
+
+    suspend fun confirmPayout(tableId: Int) = mutex.withLock {
+        require(tableId in 0 until TABLE_COUNT) { "Invalid tableId=$tableId" }
+
+        markActiveLocked(tableId)
+
+        val pending = demoState.pendingWin ?: error("No pending win")
+        check(demoState.systemMode == DemoState.SystemMode.PAYOUT_PENDING) {
+            "System is not in PAYOUT_PENDING"
+        }
+        check(pending.tableId == tableId) {
+            "Pending win belongs to table ${pending.tableId}, not $tableId"
+        }
+
+        val jackpots = demoState.jackpots.toMutableMap()
+        when (pending.jackpotId) {
+            "RUBY" -> jackpots["RUBY"] = START_RUBY
+            "GOLD" -> jackpots["GOLD"] = START_GOLD
+            "JADE" -> jackpots["JADE"] = START_JADE
+        }
+
+        demoState = demoState.copy(
+            jackpots = jackpots,
+            systemMode = DemoState.SystemMode.ACCEPTING_BETS,
+            pendingWin = null
+        )
+        rebuildStateLocked(preserveModeAndPending = true)
+
+        addEventLocked(
+            type = "PayoutConfirmed",
+            payload = mapOf(
+                "tableId" to tableId,
+                "boxId" to pending.boxId
+            )
+        )
+    }
+
+    suspend fun markActive(tableId: Int) = mutex.withLock {
+        require(tableId in 0 until TABLE_COUNT) { "Invalid tableId=$tableId" }
+        markActiveLocked(tableId)
+        rebuildStateLocked()
+    }
+
+    suspend fun getSnapshot(): DemoState = mutex.withLock {
+        rebuildStateLocked()
+        demoState
+    }
+
+    suspend fun getSync(afterEventId: Long): SyncResponse = mutex.withLock {
+        rebuildStateLocked()
         val filtered = events.filter { it.eventId > afterEventId }
-        return SyncResponse(
+        SyncResponse(
             stateVersion = stateVersion,
             lastEventId = lastEventId,
             events = filtered
         )
     }
 
-    private fun mapToJson(map: Map<String, Any>): String {
+    suspend fun currentStateVersion(): Long = mutex.withLock { stateVersion }
+
+    suspend fun currentLastEventId(): Long = mutex.withLock { lastEventId }
+
+    private fun markActiveLocked(tableId: Int) {
+        lastActivity[tableId] = System.currentTimeMillis()
+    }
+
+    private fun rebuildStateLocked(preserveModeAndPending: Boolean = false) {
+        val now = System.currentTimeMillis()
+
+        val tables = (0 until TABLE_COUNT).map { tableId ->
+            val isActive = now - lastActivity[tableId] < TABLE_ACTIVE_TIMEOUT_MS
+            val recent = recentBoxes[tableId]
+                .filter { (_, ts) -> now - ts < 60_000L }
+                .keys
+                .toSet()
+
+            DemoState.Table(
+                tableId = tableId,
+                activeBoxes = activeBoxes[tableId].toSet(),
+                recentBoxes = recent,
+                isActive = isActive
+            )
+        }
+
+        demoState = demoState.copy(
+            tables = tables,
+            systemMode = if (preserveModeAndPending) demoState.systemMode else demoState.systemMode,
+            pendingWin = if (preserveModeAndPending) demoState.pendingWin else demoState.pendingWin
+        )
+    }
+
+    private fun addEventLocked(type: String, payload: Map<String, Any>) {
+        lastEventId += 1
+        stateVersion += 1
+
+        events += SyncEvent(
+            eventId = lastEventId,
+            ts = System.currentTimeMillis(),
+            type = type,
+            payloadJson = payload.toPayloadJson()
+        )
+
+        // чтобы список не рос бесконечно
+        if (events.size > 1000) {
+            events.removeAt(0)
+        }
+    }
+
+    private fun Map<String, Any>.toPayloadJson(): String {
         val jsonObj = buildJsonObject {
-            map.forEach { (k, v) ->
-                when (v) {
-                    is Number -> put(k, JsonPrimitive(v))
-                    is String -> put(k, JsonPrimitive(v))
-                    is Boolean -> put(k, JsonPrimitive(v))
-                    else -> put(k, JsonPrimitive(v.toString()))
+            forEach { (key, value) ->
+                when (value) {
+                    is String -> put(key, JsonPrimitive(value))
+                    is Number -> put(key, JsonPrimitive(value))
+                    is Boolean -> put(key, JsonPrimitive(value))
+                    else -> put(key, JsonPrimitive(value.toString()))
                 }
             }
         }
         return Json.encodeToString(jsonObj)
-    }
-
-    private fun addEvent(type: String, payload: Map<String, Any>) {
-        val eventId = ++lastEventId
-        val ts = System.currentTimeMillis()
-        val payloadJson = mapToJson(payload)
-        events.add(
-            SyncEvent(
-                eventId = eventId,
-                ts = ts,
-                type = type,
-                payloadJson = payloadJson
-            )
-        )
     }
 }
