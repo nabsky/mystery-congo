@@ -10,9 +10,34 @@ import androidx.compose.ui.graphics.Color
 @Composable
 fun JackpotSpotlight(
     modifier: Modifier = Modifier,
-    color: Color,
-    alpha: Float = 0.20f, // 0.12..0.30
+    baseColor: Color,
+    alpha: Float = 0.20f,
+    winnerLevel: Int? = null,
+    winPhase: String = "None"
 ) {
+    val rubyColor = Color(0xFFFF2A2A)
+    val goldColor = Color(0xFFFFE08A)
+    val jadeColor = Color(0xFF59E0A7)
+
+    val winnerColor = when (winnerLevel) {
+        1 -> rubyColor
+        2 -> goldColor
+        3 -> jadeColor
+        else -> null
+    }
+
+    val spotlightColor =
+        if ((winPhase == "Rain" || winPhase == "Focus") && winnerColor != null)
+            winnerColor
+        else
+            baseColor
+
+    val alphaBoost = when {
+        winPhase == "Rain" && winnerColor != null -> 1.6f
+        winPhase == "Focus" && winnerColor != null -> 1.35f
+        else -> 1f
+    }
+
     Canvas(modifier) {
         val center = Offset(size.width / 2f, size.height / 2f)
         val radius = size.minDimension * 0.62f
@@ -20,7 +45,7 @@ fun JackpotSpotlight(
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    color.copy(alpha = alpha),
+                    spotlightColor.copy(alpha = (alpha * alphaBoost).coerceIn(0f, 1f)),
                     Color.Transparent
                 ),
                 center = center,

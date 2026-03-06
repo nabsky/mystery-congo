@@ -403,8 +403,20 @@ fun MainScreen(
                     .height(280.dp)
                     .offset(y = h * 0.10f)
                     .blur(24.dp),
-                color = Color(0xFFFF2A2A),
-                alpha = spotAlpha
+                baseColor = Color(0xFFFF2A2A),
+                alpha = spotAlpha,
+                winnerLevel = when (val w = win) {
+                    is WinPhase.Rain -> w.level
+                    is WinPhase.Focus -> w.level
+                    is WinPhase.Takeover -> w.level
+                    else -> null
+                },
+                winPhase = when (win) {
+                    is WinPhase.Rain -> "Rain"
+                    is WinPhase.Focus -> "Focus"
+                    is WinPhase.Takeover -> "Takeover"
+                    else -> "None"
+                }
             )
         }
 
