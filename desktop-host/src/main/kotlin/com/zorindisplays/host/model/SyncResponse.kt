@@ -17,3 +17,13 @@ data class SyncEvent(
     val payloadJson: String
 )
 
+@Serializable
+data class OkResponse(val ok: Boolean)
+
+@Serializable
+data class HealthResponse(
+    val ok: Boolean,
+    val stateVersion: Long,
+    val lastEventId: Long
+)
+

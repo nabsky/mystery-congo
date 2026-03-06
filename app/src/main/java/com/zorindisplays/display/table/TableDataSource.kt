@@ -65,18 +65,22 @@ class TableDataSource(
     private var pollingJob: Job? = null
     private var lastSuccessfulSyncTime = 0L
 
+    private fun healthUrl(): String = "$baseUrl/health?tableId=$tableId"
+    private fun snapshotUrl(): String = "$baseUrl/snapshot?tableId=$tableId"
+    private fun syncUrl(afterEventId: Long): String = "$baseUrl/sync?afterEventId=$afterEventId&tableId=$tableId"
+
     init {
         scope.launch {
             Log.d("TableDataSource", "Initializing connection to $baseUrl with tableId=$tableId")
             try {
                 runCatching {
-                    val healthResp = client.get("$baseUrl/health")
+                    val healthResp = client.get(healthUrl())
                     Log.d("TableDataSource", "Health check status: ${healthResp.status}")
                 }.onFailure {
                     Log.w("TableDataSource", "Health check failed: ${it.message}")
                 }
 
-                val snapshot: DemoState = client.get("$baseUrl/snapshot").body()
+                val snapshot: DemoState = client.get(snapshotUrl()).body()
                 Log.d("TableDataSource", "Snapshot received: $snapshot")
 
                 _state.value = snapshot
@@ -114,7 +118,7 @@ class TableDataSource(
 
                 try {
                     val afterId = lastEventId.get()
-                    val resp: SyncResponse = client.get("$baseUrl/sync?afterEventId=$afterId").body()
+                    val resp: SyncResponse = client.get(syncUrl(afterId)).body()
 
                     if (_connectionState.value != ConnectionState.CONNECTED) {
                         Log.i("TableDataSource", "Reconnected to host")
@@ -132,14 +136,14 @@ class TableDataSource(
 
                             when (event.type) {
                                 "BoxToggled" -> {
-                                    val snapshot: DemoState = client.get("$baseUrl/snapshot").body()
+                                    val snapshot: DemoState = client.get(snapshotUrl()).body()
                                     _state.value = snapshot
                                     lastSuccessfulSyncTime = System.currentTimeMillis()
                                     _isHostOnline.value = true
                                 }
 
                                 "BetsConfirmed" -> {
-                                    val snapshot: DemoState = client.get("$baseUrl/snapshot").body()
+                                    val snapshot: DemoState = client.get(snapshotUrl()).body()
                                     _state.value = snapshot
                                     lastSuccessfulSyncTime = System.currentTimeMillis()
                                     _isHostOnline.value = true
@@ -176,7 +180,7 @@ class TableDataSource(
                                 }
 
                                 "PayoutConfirmed" -> {
-                                    val snapshot: DemoState = client.get("$baseUrl/snapshot").body()
+                                    val snapshot: DemoState = client.get(snapshotUrl()).body()
                                     _state.value = snapshot
                                     lastSuccessfulSyncTime = System.currentTimeMillis()
                                     _isHostOnline.value = true

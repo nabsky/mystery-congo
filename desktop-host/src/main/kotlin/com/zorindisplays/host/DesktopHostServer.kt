@@ -3,6 +3,8 @@ package com.zorindisplays.host
 import com.zorindisplays.host.model.ConfirmPayoutRequest
 import com.zorindisplays.host.model.ConfirmRequest
 import com.zorindisplays.host.model.DemoState
+import com.zorindisplays.host.model.HealthResponse
+import com.zorindisplays.host.model.OkResponse
 import com.zorindisplays.host.model.SelectPayoutBoxRequest
 import com.zorindisplays.host.model.SyncEvent
 import com.zorindisplays.host.model.SyncResponse
@@ -13,12 +15,14 @@ import io.ktor.server.application.call
 import io.ktor.server.application.install
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
+import io.ktor.server.plugins.callloging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
+import org.slf4j.event.Level
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
@@ -46,6 +50,11 @@ fun main() {
 }
 
 private fun Application.module(host: InMemoryHostEmulator) {
+
+    install(CallLogging) {
+        level = Level.INFO
+    }
+
     install(ContentNegotiation) {
         json(
             Json {
@@ -59,10 +68,10 @@ private fun Application.module(host: InMemoryHostEmulator) {
     routing {
         get("/health") {
             call.respond(
-                mapOf(
-                    "ok" to true,
-                    "stateVersion" to host.currentStateVersion(),
-                    "lastEventId" to host.currentLastEventId()
+                HealthResponse(
+                    ok = true,
+                    stateVersion = host.currentStateVersion(),
+                    lastEventId = host.currentLastEventId()
                 )
             )
         }
@@ -87,32 +96,32 @@ private fun Application.module(host: InMemoryHostEmulator) {
         post("/input/toggle") {
             val req = call.receive<ToggleRequest>()
             host.toggleBox(req.tableId, req.boxId)
-            call.respond(mapOf("ok" to true))
+            call.respond(OkResponse(ok = true))
         }
 
         post("/input/confirm") {
             val req = call.receive<ConfirmRequest>()
             host.confirmBets(req.tableId)
-            call.respond(mapOf("ok" to true))
+            call.respond(OkResponse(ok = true))
         }
 
         post("/input/payout/selectBox") {
             val req = call.receive<SelectPayoutBoxRequest>()
             host.selectPayoutBox(req.tableId, req.boxId)
-            call.respond(mapOf("ok" to true))
+            call.respond(OkResponse(ok = true))
         }
 
         post("/input/payout/confirm") {
             val req = call.receive<ConfirmPayoutRequest>()
             host.confirmPayout(req.tableId)
-            call.respond(mapOf("ok" to true))
+            call.respond(OkResponse(ok = true))
         }
 
         // Не нужен Android TABLE, но удобно для ручных тестов
         post("/setActiveTable") {
             val req = call.receive<SetActiveTableRequest>()
             host.markActive(req.tableId)
-            call.respond(mapOf("ok" to true))
+            call.respond(OkResponse(ok = true))
         }
     }
 }
@@ -342,13 +351,13 @@ private class InMemoryHostEmulator {
         }
 
         demoState = demoState.copy(
-            tables = tables,
-            systemMode = if (preserveModeAndPending) demoState.systemMode else demoState.systemMode,
-            pendingWin = if (preserveModeAndPending) demoState.pendingWin else demoState.pendingWin
+            tables = tables
         )
     }
 
     private fun addEventLocked(type: String, payload: Map<String, Any>) {
+        println("EVENT $type $payload")
+
         lastEventId += 1
         stateVersion += 1
 
