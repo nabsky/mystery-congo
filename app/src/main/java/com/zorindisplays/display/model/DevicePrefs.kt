@@ -18,6 +18,7 @@ object DevicePrefsKeys {
     val hostAddress = stringPreferencesKey("hostAddress")
     val port = intPreferencesKey("port")
     val adminToken = stringPreferencesKey("adminToken")
+    val tableId = intPreferencesKey("tableId")
 }
 
 class DevicePrefs(private val context: Context) {
@@ -27,6 +28,10 @@ class DevicePrefs(private val context: Context) {
 
     val hostAddressFlow: Flow<String> = context.devicePrefsDataStore.data.map { prefs ->
         prefs[DevicePrefsKeys.hostAddress] ?: "http://192.168.1.100:8080"
+    }
+
+    val tableIdFlow: Flow<Int> = context.devicePrefsDataStore.data.map { prefs ->
+       prefs[DevicePrefsKeys.tableId] ?: 0
     }
 
     val deviceIdFlow: Flow<String> = context.devicePrefsDataStore.data.map { prefs ->
@@ -42,6 +47,12 @@ class DevicePrefs(private val context: Context) {
     suspend fun setHostAddress(address: String) {
         context.devicePrefsDataStore.edit { prefs ->
             prefs[DevicePrefsKeys.hostAddress] = address
+        }
+    }
+
+    suspend fun setTableId(id: Int) {
+        context.devicePrefsDataStore.edit { prefs ->
+            prefs[DevicePrefsKeys.tableId] = id
         }
     }
 

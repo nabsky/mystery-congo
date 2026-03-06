@@ -40,6 +40,7 @@ class DataSourceProvider(
             DeviceRole.TABLE ->
                 TableDataSource(
                     baseUrl = config.hostUrl,
+                    tableId = config.tableId,
                     scope = scope
                 )
             else -> throw IllegalStateException("Role must be set before creating data source")

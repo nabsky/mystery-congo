@@ -8,18 +8,23 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.zorindisplays.display.model.DeviceRole
+import androidx.compose.foundation.text.KeyboardOptions
 
 @Composable
 fun RolePickerDialog(
     currentRole: DeviceRole,
     initialHostUrl: String,
+    initialTableId: Int,
     onRoleSelected: (DeviceRole) -> Unit,
     onHostUrlChanged: (String) -> Unit,
+    onTableIdChanged: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
     var hostUrl by remember { mutableStateOf(initialHostUrl) }
+    var tableIdStr by remember { mutableStateOf(initialTableId.toString()) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -34,6 +39,19 @@ fun RolePickerDialog(
                        onHostUrlChanged(it)
                     },
                     label = { Text("Host URL (for TABLE)") },
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                )
+
+                androidx.compose.material3.OutlinedTextField(
+                    value = tableIdStr,
+                    onValueChange = {
+                        if (it.all { char -> char.isDigit() }) {
+                           tableIdStr = it
+                           onTableIdChanged(it.toIntOrNull() ?: 0)
+                        }
+                    },
+                    label = { Text("Table ID (0-7)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
                 )
 

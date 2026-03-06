@@ -19,9 +19,12 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.random.Random
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
 
 class TableDataSource(
     private val baseUrl: String,
+    private val tableId: Int,
     private val scope: CoroutineScope,
     private val pollIntervalMs: Long = 500
 ) : JackpotDataSource {
@@ -149,22 +152,27 @@ class TableDataSource(
         client.close()
     }
 
-    // Input команды
     override suspend fun toggleBox(tableId: Int, boxId: Int) {
-        if (_connectionState.value == ConnectionState.OFFLINE) return
-        runCatching {
+        if (this.tableId != tableId) return
+        try {
             client.post("$baseUrl/input/toggle") {
-                setBody(ToggleRequest(tableId = tableId, boxId = boxId))
+                contentType(ContentType.Application.Json)
+                setBody(mapOf("tableId" to tableId, "boxId" to boxId))
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
     override suspend fun confirmBets(tableId: Int) {
-        if (_connectionState.value == ConnectionState.OFFLINE) return
-        runCatching {
+        if (this.tableId != tableId) return
+        try {
             client.post("$baseUrl/input/confirm") {
-                setBody(ConfirmRequest(tableId = tableId))
+                contentType(ContentType.Application.Json)
+                setBody(mapOf("tableId" to tableId))
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 

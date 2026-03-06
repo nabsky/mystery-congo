@@ -17,5 +17,6 @@ interface JackpotDataSource {
 
 data class DeviceConfig(
     val role: DeviceRole = DeviceRole.DEMO,
-    val hostUrl: String = "http://127.0.0.1:8080"
+    val hostUrl: String = "http://127.0.0.1:8080",
+    val tableId: Int = 0
 )

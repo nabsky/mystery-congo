@@ -32,7 +32,7 @@ fun RoleRouter() {
 
     val role by prefs.roleFlow.collectAsState(initial = ModelDeviceRole.UNSET)
     val savedHostUrl by prefs.hostAddressFlow.collectAsState(initial = "http://192.168.1.100:8080")
-
+    val tableId by prefs.tableIdFlow.collectAsState(initial = 0)
 
     var showDialog by remember { mutableStateOf(false) }
 
@@ -49,6 +49,7 @@ fun RoleRouter() {
         RolePickerDialog(
             currentRole = role,
             initialHostUrl = savedHostUrl,
+            initialTableId = tableId,
             onRoleSelected = { selected ->
                 scope.launch {
                     prefs.setRole(selected)
@@ -57,6 +58,11 @@ fun RoleRouter() {
             onHostUrlChanged = { newUrl ->
                 scope.launch {
                     prefs.setHostAddress(newUrl)
+                }
+            },
+            onTableIdChanged = { newId ->
+                scope.launch {
+                    prefs.setTableId(newId)
                 }
             },
             onDismiss = { /* Forced choice? or strictly on UNSET */ }
@@ -73,12 +79,13 @@ fun RoleRouter() {
         }
         val config = DeviceConfig(
             role = configRole,
-            hostUrl = savedHostUrl
+            hostUrl = savedHostUrl,
+            tableId = tableId
         )
 
         // Create DataSource
         // We use a key to recreate the ViewModel if config changes
-        key(role, savedHostUrl) {
+        key(role, savedHostUrl, tableId) {
 
             val factory = object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
@@ -89,9 +96,10 @@ fun RoleRouter() {
             }
 
             // Re-keying ViewModel ensures we get a fresh instance
-            val vm: MainViewModel = viewModel(key = "${role.name}|${savedHostUrl}", factory = factory)
+            val vm: MainViewModel = viewModel(key = "${role.name}|${savedHostUrl}|${tableId}", factory = factory)
             MainScreen(
                 viewModel = vm,
+                tableId = tableId,
                 onResetRole = {
                     scope.launch {
                         prefs.setRole(ModelDeviceRole.UNSET)

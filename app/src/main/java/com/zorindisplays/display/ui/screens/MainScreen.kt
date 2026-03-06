@@ -44,6 +44,11 @@ import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToLong
+import androidx.compose.ui.input.key.*
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.foundation.focusable
 
 private sealed interface WinPhase {
     data object None : WinPhase
@@ -80,6 +85,7 @@ private sealed interface WinPhase {
 @Composable
 fun MainScreen(
     viewModel: com.zorindisplays.display.model.MainViewModel,
+    tableId: Int = 0,
     onResetRole: () -> Unit
 ) {
     val dataSource = viewModel.dataSource
@@ -94,6 +100,9 @@ fun MainScreen(
 
     // Старт/остановка эмулятора
     val uiScope = rememberCoroutineScope()
+
+    // Focus handling for keyboard input
+    val focusRequester = remember { FocusRequester() }
 
     DisposableEffect(dataSource) {
         dataSource.start(uiScope)
@@ -125,8 +134,42 @@ fun MainScreen(
     var winJackpotAmountMinor by remember { mutableStateOf<Long?>(null) }
     var winJackpotLevel by remember { mutableStateOf<Int?>(null) }
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxSize()
+            .focusRequester(focusRequester)
+            .focusable()
+            .onKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown) { // KeyDown feels more responsive for games
+                    val boxIdx = when (event.key) {
+                        Key.One, Key.NumPad1 -> 0
+                        Key.Two, Key.NumPad2 -> 1
+                        Key.Three, Key.NumPad3 -> 2
+                        Key.Four, Key.NumPad4 -> 3
+                        Key.Five, Key.NumPad5 -> 4
+                        Key.Six, Key.NumPad6 -> 5
+                        Key.Seven, Key.NumPad7 -> 6
+                        Key.Eight, Key.NumPad8 -> 7
+                        Key.Nine, Key.NumPad9 -> 8
+                        else -> -1
+                    }
+                    if (boxIdx >= 0) {
+                        uiScope.launch { dataSource.toggleBox(tableId, boxIdx) }
+                        return@onKeyEvent true
+                    }
+                    if (event.key == Key.Enter || event.key == Key.NumPadEnter) {
+                        uiScope.launch { dataSource.confirmBets(tableId) }
+                        return@onKeyEvent true
+                    }
+                }
+                false
+            }
+    ) {
         val scope = this
+
+        LaunchedEffect(Unit) {
+            focusRequester.requestFocus()
+        }
 
         val density = LocalDensity.current
         val wPx = with(density) { scope.maxWidth.toPx() }
