@@ -60,8 +60,6 @@ class Emulator(
         rebuildState(jackpots)
     }
 
-    // ---------- “network-like” methods (future) ----------
-
     fun onKeepAlive(active: Set<Int>) {
         rebuildState(_state.value.jackpots, false, activeTables = active)
     }
@@ -77,9 +75,23 @@ class Emulator(
 
     fun onBetConfirmed(table: Int) {
         if (paused) return
-        val litBets = _state.value.tables.associate { it.tableId to it.activeBoxes }.toMutableMap()
+        if (table !in 0 until tableCount) return
+
+        val currentLitBets = _state.value.tables.associate { it.tableId to it.activeBoxes }
+        val confirmedBoxes = currentLitBets[table].orEmpty()
+        if (confirmedBoxes.isEmpty()) return
+
+        val litBets = currentLitBets.toMutableMap()
         litBets.remove(table)
+
         rebuildState(_state.value.jackpots, false, litBets = litBets)
+
+        _events.tryEmit(
+            DemoEvent.BetsConfirmed(
+                tableId = table,
+                boxIds = confirmedBoxes
+            )
+        )
     }
 
     private fun onNoWinBump() {
@@ -108,8 +120,6 @@ class Emulator(
             }
         }
     }
-
-    // ---------- loops ----------
 
     private suspend fun activeTablesLoop() {
         stableInactive = pickStableInactive()
