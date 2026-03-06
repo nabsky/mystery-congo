@@ -349,7 +349,21 @@ fun MainScreen(
                 )
             }
 
-            GemSpotlightsOverlay(modifier = Modifier.fillMaxSize())
+            GemSpotlightsOverlay(
+                modifier = Modifier.fillMaxSize(),
+                winnerLevel = when (val w = win) {
+                    is WinPhase.Rain -> w.level
+                    is WinPhase.Focus -> w.level
+                    is WinPhase.Takeover -> w.level
+                    else -> null
+                },
+                winPhase = when (win) {
+                    is WinPhase.Rain -> "Rain"
+                    is WinPhase.Focus -> "Focus"
+                    is WinPhase.Takeover -> "Takeover"
+                    else -> "None"
+                }
+            )
 
             BreathingVignette(
                 modifier = Modifier.fillMaxSize(),

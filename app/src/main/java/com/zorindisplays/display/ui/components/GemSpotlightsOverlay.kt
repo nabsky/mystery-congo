@@ -19,8 +19,10 @@ import kotlin.math.min
 @Composable
 fun GemSpotlightsOverlay(
     modifier: Modifier = Modifier,
-    strength: Float = 1f,   // общий множитель, можно 0.8f если хочется тише
+    strength: Float = 1f,
     periodMs: Int = 12000,
+    winnerLevel: Int? = null,   // 1=ruby, 2=gold, 3=jade
+    winPhase: String = "None",  // "None", "Rain", "Focus", "Takeover"
 ) {
     val tr = rememberInfiniteTransition(label = "gemSpotPulse")
     val pulse by tr.animateFloat(
@@ -33,19 +35,47 @@ fun GemSpotlightsOverlay(
         label = "pulse"
     )
 
+    val rubyColor = Color(0xFFFF2A2A)
+    val goldColor = Color(0xFFFFE08A)
+    val jadeColor = Color(0xFF59E0A7)
+
+    val winnerColor = when (winnerLevel) {
+        1 -> rubyColor
+        2 -> goldColor
+        3 -> jadeColor
+        else -> null
+    }
+
+    val isWinGlowPhase = (winPhase == "Rain" || winPhase == "Focus") && winnerColor != null
+    val boost = when {
+        winPhase == "Rain" && winnerColor != null -> 1.55f
+        winPhase == "Focus" && winnerColor != null -> 1.35f
+        else -> 1f
+    }
+
     BoxWithConstraints(modifier = modifier) {
         Canvas(Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
             val m = min(w, h)
 
-            fun glow(anchor: Offset, color: Color, alpha: Float, radiusFrac: Float, nudgePx: Offset = Offset.Zero) {
-                val center = Offset(w * anchor.x + nudgePx.x, h * anchor.y + nudgePx.y)
+            fun glow(
+                anchor: Offset,
+                color: Color,
+                alpha: Float,
+                radiusFrac: Float,
+                nudgePx: Offset = Offset.Zero
+            ) {
+                val center = Offset(
+                    x = w * anchor.x + nudgePx.x,
+                    y = h * anchor.y + nudgePx.y
+                )
                 val r = m * radiusFrac
+
                 drawCircle(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            color.copy(alpha = (alpha * pulse * strength).coerceIn(0f, 1f)),
+                            color.copy(alpha = (alpha * boost * pulse * strength).coerceIn(0f, 1f)),
                             Color.Transparent
                         ),
                         center = center,
@@ -56,10 +86,14 @@ fun GemSpotlightsOverlay(
                 )
             }
 
+            val rubySpotColor = if (isWinGlowPhase) winnerColor!! else rubyColor
+            val goldSpotColor = if (isWinGlowPhase) winnerColor!! else goldColor
+            val jadeSpotColor = if (isWinGlowPhase) winnerColor!! else jadeColor
+
             // Ruby
             glow(
                 anchor = Offset(0.79f, 0.15f),
-                color = Color(0xFFFF2A2A),
+                color = rubySpotColor,
                 alpha = 0.22f,
                 radiusFrac = 0.20f,
                 nudgePx = Offset(20f, -20f)
@@ -68,7 +102,7 @@ fun GemSpotlightsOverlay(
             // Gold
             glow(
                 anchor = Offset(0.24f, 0.42f),
-                color = Color(0xFFFFE08A),
+                color = goldSpotColor,
                 alpha = 0.16f,
                 radiusFrac = 0.20f
             )
@@ -76,7 +110,7 @@ fun GemSpotlightsOverlay(
             // Jade
             glow(
                 anchor = Offset(0.74f, 0.66f),
-                color = Color(0xFF59E0A7),
+                color = jadeSpotColor,
                 alpha = 0.14f,
                 radiusFrac = 0.18f
             )
