@@ -22,3 +22,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Mystery"
 include(":app")
+include(":desktop-host")
