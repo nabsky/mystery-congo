@@ -32,3 +32,22 @@ data class DemoState(
     )
 }
 
+@Serializable
+data class RemoteBox(
+    val id: Int,
+    val isSelected: Boolean
+)
+
+@Serializable
+data class RemoteTable(
+    val id: Int,
+    val boxes: List<RemoteBox> = emptyList(),
+    val status: String = "BETTING"
+)
+
+@Serializable
+data class RemoteSnapshot(
+    val tables: List<RemoteTable> = emptyList(),
+    val jackpots: Map<String, Long> = emptyMap(),
+    val systemMode: String = "ACCEPTING_BETS"
+)

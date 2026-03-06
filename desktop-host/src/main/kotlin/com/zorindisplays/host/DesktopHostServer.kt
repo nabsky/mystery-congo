@@ -29,7 +29,8 @@ fun main() {
                 call.respond(mapOf("status" to "ok"))
             }
             get("/snapshot") {
-                call.respond(host.getSnapshot())
+                // Вместо DemoState возвращаем RemoteSnapshot
+                call.respond(host.getRemoteSnapshot())
             }
             get("/sync") {
                 val afterEventId = call.request.queryParameters["afterEventId"]?.toLongOrNull() ?: 0L
@@ -64,9 +65,7 @@ class InMemoryHostEmulator {
     private var stateVersion = 1L
     private var lastEventId = 1L
     private var demoState = DemoState(
-        tables = listOf(
-            DemoState.Table(tableId = 0, activeBoxes = emptySet(), recentBoxes = emptySet(), isActive = true)
-        ),
+        tables = (0..7).map { DemoState.Table(tableId = it, activeBoxes = emptySet(), recentBoxes = emptySet(), isActive = true) },
         jackpots = mapOf("RUBY" to 1000L, "GOLD" to 2000L, "JADE" to 3000L),
         systemMode = DemoState.SystemMode.ACCEPTING_BETS,
         pendingWin = null
@@ -108,6 +107,26 @@ class InMemoryHostEmulator {
     }
 
     fun getSnapshot(): DemoState = demoState
+
+    fun getRemoteSnapshot(): RemoteSnapshot {
+        // Преобразуем DemoState в RemoteSnapshot (1-based id, boxes, status)
+        return RemoteSnapshot(
+            tables = demoState.tables.map { table ->
+                RemoteTable(
+                    id = table.tableId + 1, // 1-based
+                    boxes = (0..8).map { boxId ->
+                        RemoteBox(
+                            id = boxId + 1, // 1-based
+                            isSelected = table.activeBoxes.contains(boxId)
+                        )
+                    },
+                    status = if (table.isActive) "BETTING" else "OFFLINE"
+                )
+            },
+            jackpots = demoState.jackpots,
+            systemMode = demoState.systemMode.name
+        )
+    }
 
     fun getSync(afterEventId: Long): SyncResponse {
         val filtered = events.filter { it.eventId > afterEventId }
