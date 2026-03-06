@@ -153,6 +153,24 @@ fun MainScreen(
                         Key.Nine, Key.NumPad9 -> 8
                         else -> -1
                     }
+
+                    // Check for Jackpot Payout Mode (Takeover)
+                    val currentWin = win
+                    if (currentWin is WinPhase.Takeover && currentWin.table == normTable0(tableId)) {
+                        if (boxIdx >= 0) {
+                             uiScope.launch { dataSource.selectPayoutBox(tableId, boxIdx) }
+                             return@onKeyEvent true
+                        }
+                        if (event.key == Key.Enter || event.key == Key.NumPadEnter) {
+                             uiScope.launch { dataSource.confirmPayout(tableId) }
+                             return@onKeyEvent true
+                        }
+                        // Ignore other keys during takeover for this table? Or allow pass-through?
+                        // Better to consume if it's a number/enter to avoid accidental bets if logic allows (though bets should be blocked by system status)
+                        return@onKeyEvent false
+                    }
+
+                    // Normal Betting Mode
                     if (boxIdx >= 0) {
                         uiScope.launch { dataSource.toggleBox(tableId, boxIdx) }
                         return@onKeyEvent true
