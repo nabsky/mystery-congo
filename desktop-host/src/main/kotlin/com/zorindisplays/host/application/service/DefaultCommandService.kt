@@ -34,7 +34,7 @@ class DefaultCommandService(
         }
 
         return try {
-            hostWriteRepository.toggleBoxTransactional(
+            hostWriteRepository.toggleBox(
                 tableId = command.tableId,
                 boxId = command.boxId
             )
@@ -61,7 +61,7 @@ class DefaultCommandService(
         }
 
         return try {
-            hostWriteRepository.confirmBetsTransactional(
+            hostWriteRepository.confirmBets(
                 tableId = command.tableId,
                 recentBoxTtlMs = config.recentBoxTtlMs,
                 randomRoll = { until -> randomProvider.nextInt(until) }
@@ -94,7 +94,7 @@ class DefaultCommandService(
         }
 
         return try {
-            hostWriteRepository.selectPayoutBoxTransactional(
+            hostWriteRepository.selectPayoutBox(
                 tableId = command.tableId,
                 boxId = command.boxId
             )
@@ -121,7 +121,7 @@ class DefaultCommandService(
         }
 
         return try {
-            hostWriteRepository.confirmPayoutTransactional(command.tableId)
+            hostWriteRepository.confirmPayout(command.tableId)
             CommandResult.Accepted
         } catch (e: IllegalArgumentException) {
             CommandResult.Rejected(e.message ?: "Invalid payout confirmation")

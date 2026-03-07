@@ -1,15 +1,34 @@
 package com.zorindisplays.host.infrastructure.repository
 
-import com.zorindisplays.host.domain.event.SyncEventType
-import com.zorindisplays.host.domain.model.*
-import com.zorindisplays.host.infrastructure.db.dbQuery
-import com.zorindisplays.host.infrastructure.db.tables.*
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import com.zorindisplays.host.admin.AdminLiveMessage
 import com.zorindisplays.host.admin.AdminWsHub
+import com.zorindisplays.host.domain.event.SyncEventType
+import com.zorindisplays.host.domain.model.JackpotConfig
+import com.zorindisplays.host.domain.model.JackpotId
+import com.zorindisplays.host.domain.model.JackpotState
+import com.zorindisplays.host.domain.model.PendingWin
+import com.zorindisplays.host.domain.model.SystemMode
+import com.zorindisplays.host.infrastructure.db.dbQuery
+import com.zorindisplays.host.infrastructure.db.tables.BetBatchItemTable
+import com.zorindisplays.host.infrastructure.db.tables.BetBatchTable
+import com.zorindisplays.host.infrastructure.db.tables.JackpotConfigTable
+import com.zorindisplays.host.infrastructure.db.tables.JackpotHitTable
+import com.zorindisplays.host.infrastructure.db.tables.JackpotStateTable
+import com.zorindisplays.host.infrastructure.db.tables.PendingWinTable
+import com.zorindisplays.host.infrastructure.db.tables.SyncEventTable
+import com.zorindisplays.host.infrastructure.db.tables.SystemStateTable
+import com.zorindisplays.host.infrastructure.db.tables.TableActiveBoxTable
+import com.zorindisplays.host.infrastructure.db.tables.TableRecentBoxTable
+import com.zorindisplays.host.infrastructure.db.tables.TableStateTable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.deleteWhere
+import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.update
 
 class HostWriteRepository {
 
@@ -27,17 +46,13 @@ class HostWriteRepository {
         val liveEvent: LiveEventToBroadcast? = null
     )
 
-    // ============================================================
-    // Helpers
-    // ============================================================
-
-    private fun loadSystemRow() =
+    private fun loadSystemRow(): ResultRow =
         SystemStateTable.selectAll().single()
 
-    private fun currentSystemMode(row: ResultRow) =
+    private fun currentSystemMode(row: ResultRow): SystemMode =
         SystemMode.valueOf(row[SystemStateTable.systemMode])
 
-    private fun nextStateVersion(row: ResultRow) =
+    private fun nextStateVersion(row: ResultRow): Long =
         row[SystemStateTable.stateVersion] + 1
 
     private fun touchTable(tableId: Int, now: Long) {
@@ -70,487 +85,497 @@ class HostWriteRepository {
         updatePendingWin: Boolean = false
     ) {
         SystemStateTable.update({ SystemStateTable.id eq 1L }) {
-
-            if (systemMode != null)
+            if (systemMode != null) {
                 it[SystemStateTable.systemMode] = systemMode.name
-
-            if (updatePendingWin)
+            }
+            if (updatePendingWin) {
                 it[SystemStateTable.pendingWinId] = pendingWinId
-
+            }
             it[stateVersion] = nextStateVersion
             it[lastEventId] = eventId
             it[updatedAt] = now
         }
     }
 
-    private suspend fun broadcastLiveEvent(
-        eventId: Long,
-        now: Long,
-        type: SyncEventType,
-        payload: String,
-        stateVersion: Long
-    ) {
+    private suspend fun broadcastLiveEvent(event: LiveEventToBroadcast) {
         AdminWsHub.broadcast(
             Json.encodeToString(
                 AdminLiveMessage(
                     type = "event",
-                    eventType = type.name,
-                    payloadJson = payload,
-                    stateVersion = stateVersion,
-                    eventId = eventId,
-                    ts = now
+                    eventType = event.type.name,
+                    payloadJson = event.payloadJson,
+                    stateVersion = event.stateVersion,
+                    eventId = event.eventId,
+                    ts = event.ts
                 )
             )
         )
     }
 
-    // ============================================================
-    // Toggle Box
-    // ============================================================
-
-    suspend fun toggleBoxTransactional(
+    suspend fun toggleBox(
         tableId: Int,
         boxId: Int
-    ): CommandWriteResult = dbQuery {
+    ): CommandWriteResult {
+        val result = dbQuery {
+            val now = System.currentTimeMillis()
 
-        val now = System.currentTimeMillis()
-
-        val systemRow = loadSystemRow()
-        require(currentSystemMode(systemRow) == SystemMode.ACCEPTING_BETS)
-
-        touchTable(tableId, now)
-
-        val exists = TableActiveBoxTable
-            .selectAll()
-            .where {
-                (TableActiveBoxTable.tableId eq tableId) and
-                        (TableActiveBoxTable.boxId eq boxId)
-            }
-            .any()
-
-        if (exists) {
-            TableActiveBoxTable.deleteWhere {
-                (TableActiveBoxTable.tableId eq tableId) and
-                        (TableActiveBoxTable.boxId eq boxId)
-            }
-        } else {
-            TableActiveBoxTable.insert {
-                it[TableActiveBoxTable.tableId] = tableId
-                it[TableActiveBoxTable.boxId] = boxId
-                it[selectedAt] = now
-            }
-        }
-
-        val nextVersion = nextStateVersion(systemRow)
-
-        val payload = """{"tableId":$tableId,"boxId":$boxId}"""
-        val eventId = insertSyncEvent(
-            now,
-            SyncEventType.BoxToggled,
-            payload,
-            nextVersion
-        )
-
-        updateSystemState(nextVersion, eventId, now)
-
-        CommandWriteResult(
-            stateVersion = nextVersion,
-            lastEventId = eventId,
-            liveEvent = LiveEventToBroadcast(
-                eventId = eventId,
-                ts = now,
-                type = SyncEventType.BoxToggled,
-                payloadJson = payload,
-                stateVersion = nextVersion
-            )
-        )
-    }
-
-    // ============================================================
-    // Confirm Bets
-    // ============================================================
-
-    suspend fun confirmBetsTransactional(
-        tableId: Int,
-        recentBoxTtlMs: Long,
-        randomRoll: (Int) -> Int
-    ): CommandWriteResult = dbQuery {
-
-        val now = System.currentTimeMillis()
-
-        val systemRow = loadSystemRow()
-        require(currentSystemMode(systemRow) == SystemMode.ACCEPTING_BETS)
-
-        val currentStateVersion = systemRow[SystemStateTable.stateVersion]
-
-        val activeBoxes = TableActiveBoxTable
-            .selectAll()
-            .where { TableActiveBoxTable.tableId eq tableId }
-            .map { it[TableActiveBoxTable.boxId] }
-            .sorted()
-
-        if (activeBoxes.isEmpty()) {
-            return@dbQuery CommandWriteResult(
-                currentStateVersion,
-                systemRow[SystemStateTable.lastEventId]
-            )
-        }
-
-        touchTable(tableId, now)
-
-        // -----------------------------
-        // Load jackpot configs
-        // -----------------------------
-
-        val jackpotConfigs = JackpotConfigTable.selectAll()
-            .map {
-                JackpotConfig(
-                    jackpotId = JackpotId.valueOf(it[JackpotConfigTable.jackpotId]),
-                    resetAmount = it[JackpotConfigTable.resetAmount],
-                    contributionPerBet = it[JackpotConfigTable.contributionPerBet],
-                    hitFrequencyGames = it[JackpotConfigTable.hitFrequencyGames],
-                    priorityOrder = it[JackpotConfigTable.priorityOrder],
-                    enabled = it[JackpotConfigTable.enabled]
-                )
-            }
-            .filter { it.enabled }
-            .sortedBy { it.priorityOrder }
-
-        val jackpotStates = JackpotStateTable.selectAll()
-            .associate {
-                val id = JackpotId.valueOf(it[JackpotStateTable.jackpotId])
-                id to JackpotState(
-                    id,
-                    it[JackpotStateTable.currentAmount],
-                    it[JackpotStateTable.gamesSinceLastHit]
-                )
-            }
-            .toMutableMap()
-
-        var pendingWin: PendingWin? = null
-
-        activeLoop@ for (boxId in activeBoxes) {
-
-            jackpotConfigs.forEach { cfg ->
-                val current = jackpotStates.getValue(cfg.jackpotId)
-                jackpotStates[cfg.jackpotId] = current.copy(
-                    currentAmount = current.currentAmount + cfg.contributionPerBet,
-                    gamesSinceLastHit = current.gamesSinceLastHit + 1
-                )
+            val systemRow = loadSystemRow()
+            require(currentSystemMode(systemRow) == SystemMode.ACCEPTING_BETS) {
+                "System is not accepting bets"
             }
 
-            for (cfg in jackpotConfigs) {
-                val roll = randomRoll(cfg.hitFrequencyGames)
+            touchTable(tableId, now)
 
-                if (roll == 0) {
-                    val state = jackpotStates.getValue(cfg.jackpotId)
+            val exists = TableActiveBoxTable.selectAll()
+                .where {
+                    (TableActiveBoxTable.tableId eq tableId) and
+                            (TableActiveBoxTable.boxId eq boxId)
+                }
+                .any()
 
-                    jackpotStates[cfg.jackpotId] =
-                        state.copy(gamesSinceLastHit = 0)
-
-                    pendingWin = PendingWin(
-                        jackpotId = cfg.jackpotId,
-                        tableId = tableId,
-                        winningBoxId = boxId,
-                        dealerConfirmed = false,
-                        winAmount = state.currentAmount,
-                        createdAt = now
-                    )
-
-                    break@activeLoop
+            if (exists) {
+                TableActiveBoxTable.deleteWhere {
+                    (TableActiveBoxTable.tableId eq tableId) and
+                            (TableActiveBoxTable.boxId eq boxId)
+                }
+            } else {
+                TableActiveBoxTable.insert {
+                    it[TableActiveBoxTable.tableId] = tableId
+                    it[TableActiveBoxTable.boxId] = boxId
+                    it[selectedAt] = now
                 }
             }
-        }
 
-        jackpotStates.values.forEach { state ->
-            JackpotStateTable.update({
-                JackpotStateTable.jackpotId eq state.jackpotId.name
-            }) {
-                it[currentAmount] = state.currentAmount
-                it[gamesSinceLastHit] = state.gamesSinceLastHit
-                it[updatedAt] = now
-            }
-        }
+            val nextVersion = nextStateVersion(systemRow)
+            val payload = """{"tableId":$tableId,"boxId":$boxId}"""
 
-        activeBoxes.forEach { boxId ->
-
-            TableRecentBoxTable.deleteWhere {
-                (TableRecentBoxTable.tableId eq tableId) and
-                        (TableRecentBoxTable.boxId eq boxId)
-            }
-
-            TableRecentBoxTable.insert {
-                it[TableRecentBoxTable.tableId] = tableId
-                it[TableRecentBoxTable.boxId] = boxId
-                it[confirmedAt] = now
-                it[expiresAt] = now + recentBoxTtlMs
-            }
-        }
-
-        TableActiveBoxTable.deleteWhere {
-            TableActiveBoxTable.tableId eq tableId
-        }
-
-        val betBatchId = BetBatchTable.insert {
-            it[BetBatchTable.tableId] = tableId
-            it[confirmedAt] = now
-            it[boxCount] = activeBoxes.size
-            it[result] = if (pendingWin == null) "NO_WIN" else "JACKPOT_HIT"
-            it[winningJackpotId] = pendingWin?.jackpotId?.name
-            it[winningBoxId] = pendingWin?.winningBoxId
-        } get BetBatchTable.id
-
-        val hitIndex = pendingWin?.winningBoxId?.let { activeBoxes.indexOf(it) } ?: -1
-
-        activeBoxes.forEachIndexed { index, boxId ->
-
-            val result = when {
-                pendingWin == null -> "LOSE"
-                index < hitIndex -> "LOSE"
-                index == hitIndex -> "WIN"
-                else -> "SKIPPED_AFTER_HIT"
-            }
-
-            BetBatchItemTable.insert {
-                it[BetBatchItemTable.betBatchId] = betBatchId
-                it[BetBatchItemTable.boxId] = boxId
-                it[seqNo] = index
-                it[BetBatchItemTable.result] = result
-            }
-        }
-
-        val hit = pendingWin
-
-        if (hit != null) {
-
-            val pendingWinId = PendingWinTable.insert {
-                it[jackpotId] = hit.jackpotId.name
-                it[PendingWinTable.tableId] = hit.tableId
-                it[winningBoxId] = hit.winningBoxId
-                it[dealerConfirmed] = false
-                it[winAmount] = hit.winAmount
-                it[status] = "WAITING_CONFIRM"
-                it[createdAt] = now
-                it[updatedAt] = now
-            } get PendingWinTable.id
-
-            JackpotHitTable.insert {
-                it[jackpotId] = hit.jackpotId.name
-                it[JackpotHitTable.tableId] = hit.tableId
-                it[triggerBoxId] = hit.winningBoxId
-                it[winAmount] = hit.winAmount
-                it[JackpotHitTable.betBatchId] = betBatchId
-                it[hitAt] = now
-                it[payoutConfirmedAt] = null
-                it[confirmedBoxId] = null
-                it[status] = "PENDING_CONFIRM"
-            }
-
-            val nextVersion = currentStateVersion + 1
-
-            val payload =
-                """{"jackpotId":"${hit.jackpotId.name}","tableId":${hit.tableId},"boxId":${hit.winningBoxId},"winAmount":${hit.winAmount}}"""
             val eventId = insertSyncEvent(
-                now,
-                SyncEventType.JackpotHitDetected,
-                payload,
-                nextVersion
+                now = now,
+                type = SyncEventType.BoxToggled,
+                payload = payload,
+                stateVersion = nextVersion
             )
 
             updateSystemState(
-                nextVersion,
-                eventId,
-                now,
-                SystemMode.PAYOUT_PENDING,
-                pendingWinId,
-                true
+                nextStateVersion = nextVersion,
+                eventId = eventId,
+                now = now
             )
-            return@dbQuery CommandWriteResult(
+
+            CommandWriteResult(
                 stateVersion = nextVersion,
                 lastEventId = eventId,
                 liveEvent = LiveEventToBroadcast(
                     eventId = eventId,
                     ts = now,
-                    type = SyncEventType.JackpotHitDetected,
+                    type = SyncEventType.BoxToggled,
                     payloadJson = payload,
                     stateVersion = nextVersion
                 )
             )
         }
 
-        val nextVersion = currentStateVersion + 1
-
-        val payload =
-            """{"tableId":$tableId,"boxIds":[${activeBoxes.joinToString(",")}]}"""
-        val eventId = insertSyncEvent(
-            now,
-            SyncEventType.BetsConfirmed,
-            payload,
-            nextVersion
-        )
-
-        updateSystemState(nextVersion, eventId, now)
-
-        CommandWriteResult(
-            stateVersion = nextVersion,
-            lastEventId = eventId,
-            liveEvent = LiveEventToBroadcast(
-                eventId = eventId,
-                ts = now,
-                type = SyncEventType.BetsConfirmed,
-                payloadJson = payload,
-                stateVersion = nextVersion
-            )
-        )
+        result.liveEvent?.let { broadcastLiveEvent(it) }
+        return result
     }
 
-    // ============================================================
-    // Dealer selects box
-    // ============================================================
+    suspend fun confirmBets(
+        tableId: Int,
+        recentBoxTtlMs: Long,
+        randomRoll: (Int) -> Int
+    ): CommandWriteResult {
+        val result = dbQuery {
+            val now = System.currentTimeMillis()
 
-    suspend fun selectPayoutBoxTransactional(
+            val systemRow = loadSystemRow()
+            require(currentSystemMode(systemRow) == SystemMode.ACCEPTING_BETS) {
+                "System is not accepting bets"
+            }
+
+            val currentStateVersion = systemRow[SystemStateTable.stateVersion]
+
+            val activeBoxes = TableActiveBoxTable.selectAll()
+                .where { TableActiveBoxTable.tableId eq tableId }
+                .map { it[TableActiveBoxTable.boxId] }
+                .sorted()
+
+            if (activeBoxes.isEmpty()) {
+                return@dbQuery CommandWriteResult(
+                    stateVersion = currentStateVersion,
+                    lastEventId = systemRow[SystemStateTable.lastEventId]
+                )
+            }
+
+            touchTable(tableId, now)
+
+            val jackpotConfigs = JackpotConfigTable.selectAll()
+                .map { row ->
+                    JackpotConfig(
+                        jackpotId = JackpotId.valueOf(row[JackpotConfigTable.jackpotId]),
+                        resetAmount = row[JackpotConfigTable.resetAmount],
+                        contributionPerBet = row[JackpotConfigTable.contributionPerBet],
+                        hitFrequencyGames = row[JackpotConfigTable.hitFrequencyGames],
+                        priorityOrder = row[JackpotConfigTable.priorityOrder],
+                        enabled = row[JackpotConfigTable.enabled]
+                    )
+                }
+                .filter { it.enabled }
+                .sortedBy { it.priorityOrder }
+
+            val jackpotStates = JackpotStateTable.selectAll()
+                .associate { row ->
+                    val jackpotId = JackpotId.valueOf(row[JackpotStateTable.jackpotId])
+                    jackpotId to JackpotState(
+                        jackpotId = jackpotId,
+                        currentAmount = row[JackpotStateTable.currentAmount],
+                        gamesSinceLastHit = row[JackpotStateTable.gamesSinceLastHit]
+                    )
+                }
+                .toMutableMap()
+
+            var pendingWin: PendingWin? = null
+
+            activeLoop@ for (boxId in activeBoxes) {
+                jackpotConfigs.forEach { cfg ->
+                    val current = jackpotStates.getValue(cfg.jackpotId)
+                    jackpotStates[cfg.jackpotId] = current.copy(
+                        currentAmount = current.currentAmount + cfg.contributionPerBet,
+                        gamesSinceLastHit = current.gamesSinceLastHit + 1
+                    )
+                }
+
+                for (cfg in jackpotConfigs) {
+                    val roll = randomRoll(cfg.hitFrequencyGames)
+                    if (roll == 0) {
+                        val state = jackpotStates.getValue(cfg.jackpotId)
+
+                        jackpotStates[cfg.jackpotId] = state.copy(
+                            gamesSinceLastHit = 0
+                        )
+
+                        pendingWin = PendingWin(
+                            jackpotId = cfg.jackpotId,
+                            tableId = tableId,
+                            winningBoxId = boxId,
+                            dealerConfirmed = false,
+                            winAmount = state.currentAmount,
+                            createdAt = now
+                        )
+                        break@activeLoop
+                    }
+                }
+            }
+
+            jackpotStates.values.forEach { state ->
+                JackpotStateTable.update({
+                    JackpotStateTable.jackpotId eq state.jackpotId.name
+                }) {
+                    it[currentAmount] = state.currentAmount
+                    it[gamesSinceLastHit] = state.gamesSinceLastHit
+                    it[updatedAt] = now
+                }
+            }
+
+            activeBoxes.forEach { boxId ->
+                TableRecentBoxTable.deleteWhere {
+                    (TableRecentBoxTable.tableId eq tableId) and
+                            (TableRecentBoxTable.boxId eq boxId)
+                }
+
+                TableRecentBoxTable.insert {
+                    it[TableRecentBoxTable.tableId] = tableId
+                    it[TableRecentBoxTable.boxId] = boxId
+                    it[confirmedAt] = now
+                    it[expiresAt] = now + recentBoxTtlMs
+                }
+            }
+
+            TableActiveBoxTable.deleteWhere {
+                TableActiveBoxTable.tableId eq tableId
+            }
+
+            val betBatchId = BetBatchTable.insert {
+                it[BetBatchTable.tableId] = tableId
+                it[confirmedAt] = now
+                it[boxCount] = activeBoxes.size
+                it[result] = if (pendingWin == null) "NO_WIN" else "JACKPOT_HIT"
+                it[winningJackpotId] = pendingWin?.jackpotId?.name
+                it[winningBoxId] = pendingWin?.winningBoxId
+            } get BetBatchTable.id
+
+            val hitIndex = pendingWin?.winningBoxId?.let { activeBoxes.indexOf(it) } ?: -1
+
+            activeBoxes.forEachIndexed { index, boxId ->
+                val itemResult = when {
+                    pendingWin == null -> "LOSE"
+                    index < hitIndex -> "LOSE"
+                    index == hitIndex -> "WIN"
+                    else -> "SKIPPED_AFTER_HIT"
+                }
+
+                BetBatchItemTable.insert {
+                    it[BetBatchItemTable.betBatchId] = betBatchId
+                    it[BetBatchItemTable.boxId] = boxId
+                    it[seqNo] = index
+                    it[result] = itemResult
+                }
+            }
+
+            val hit = pendingWin
+            if (hit != null) {
+                val pendingWinId = PendingWinTable.insert {
+                    it[jackpotId] = hit.jackpotId.name
+                    it[PendingWinTable.tableId] = hit.tableId
+                    it[winningBoxId] = hit.winningBoxId
+                    it[dealerConfirmed] = false
+                    it[winAmount] = hit.winAmount
+                    it[status] = "WAITING_CONFIRM"
+                    it[createdAt] = now
+                    it[updatedAt] = now
+                } get PendingWinTable.id
+
+                JackpotHitTable.insert {
+                    it[jackpotId] = hit.jackpotId.name
+                    it[JackpotHitTable.tableId] = hit.tableId
+                    it[triggerBoxId] = hit.winningBoxId
+                    it[winAmount] = hit.winAmount
+                    it[JackpotHitTable.betBatchId] = betBatchId
+                    it[hitAt] = now
+                    it[payoutConfirmedAt] = null
+                    it[confirmedBoxId] = null
+                    it[status] = "PENDING_CONFIRM"
+                }
+
+                val nextVersion = currentStateVersion + 1
+                val payload =
+                    """{"jackpotId":"${hit.jackpotId.name}","tableId":${hit.tableId},"boxId":${hit.winningBoxId},"winAmount":${hit.winAmount}}"""
+
+                val eventId = insertSyncEvent(
+                    now = now,
+                    type = SyncEventType.JackpotHitDetected,
+                    payload = payload,
+                    stateVersion = nextVersion
+                )
+
+                updateSystemState(
+                    nextStateVersion = nextVersion,
+                    eventId = eventId,
+                    now = now,
+                    systemMode = SystemMode.PAYOUT_PENDING,
+                    pendingWinId = pendingWinId,
+                    updatePendingWin = true
+                )
+
+                return@dbQuery CommandWriteResult(
+                    stateVersion = nextVersion,
+                    lastEventId = eventId,
+                    liveEvent = LiveEventToBroadcast(
+                        eventId = eventId,
+                        ts = now,
+                        type = SyncEventType.JackpotHitDetected,
+                        payloadJson = payload,
+                        stateVersion = nextVersion
+                    )
+                )
+            }
+
+            val nextVersion = currentStateVersion + 1
+            val payload =
+                """{"tableId":$tableId,"boxIds":[${activeBoxes.joinToString(",")}]}"""
+
+            val eventId = insertSyncEvent(
+                now = now,
+                type = SyncEventType.BetsConfirmed,
+                payload = payload,
+                stateVersion = nextVersion
+            )
+
+            updateSystemState(
+                nextStateVersion = nextVersion,
+                eventId = eventId,
+                now = now
+            )
+
+            CommandWriteResult(
+                stateVersion = nextVersion,
+                lastEventId = eventId,
+                liveEvent = LiveEventToBroadcast(
+                    eventId = eventId,
+                    ts = now,
+                    type = SyncEventType.BetsConfirmed,
+                    payloadJson = payload,
+                    stateVersion = nextVersion
+                )
+            )
+        }
+
+        result.liveEvent?.let { broadcastLiveEvent(it) }
+        return result
+    }
+
+    suspend fun selectPayoutBox(
         tableId: Int,
         boxId: Int
-    ): CommandWriteResult = dbQuery {
+    ): CommandWriteResult {
+        val result = dbQuery {
+            val now = System.currentTimeMillis()
 
-        val now = System.currentTimeMillis()
+            val systemRow = loadSystemRow()
+            require(currentSystemMode(systemRow) == SystemMode.PAYOUT_PENDING) {
+                "System is not in PAYOUT_PENDING"
+            }
 
-        val systemRow = loadSystemRow()
-        require(currentSystemMode(systemRow) == SystemMode.PAYOUT_PENDING)
+            val pendingWinId = systemRow[SystemStateTable.pendingWinId]
+                ?: error("No pending win")
 
-        val pendingWinId = systemRow[SystemStateTable.pendingWinId]
-            ?: error("No pending win")
+            val row = PendingWinTable.selectAll()
+                .where { PendingWinTable.id eq pendingWinId }
+                .single()
 
-        val row = PendingWinTable.selectAll()
-            .where { PendingWinTable.id eq pendingWinId }
-            .single()
+            require(row[PendingWinTable.tableId] == tableId) {
+                "Pending win belongs to table ${row[PendingWinTable.tableId]}"
+            }
 
-        require(row[PendingWinTable.tableId] == tableId)
+            val winningBox = row[PendingWinTable.winningBoxId]
 
-        val winningBox = row[PendingWinTable.winningBoxId]
+            if (winningBox != boxId) {
+                return@dbQuery CommandWriteResult(
+                    stateVersion = systemRow[SystemStateTable.stateVersion],
+                    lastEventId = systemRow[SystemStateTable.lastEventId]
+                )
+            }
 
-        if (winningBox != boxId)
-            return@dbQuery CommandWriteResult(
-                systemRow[SystemStateTable.stateVersion],
-                systemRow[SystemStateTable.lastEventId]
-            )
+            if (row[PendingWinTable.dealerConfirmed]) {
+                return@dbQuery CommandWriteResult(
+                    stateVersion = systemRow[SystemStateTable.stateVersion],
+                    lastEventId = systemRow[SystemStateTable.lastEventId]
+                )
+            }
 
-        if (row[PendingWinTable.dealerConfirmed])
-            return@dbQuery CommandWriteResult(
-                systemRow[SystemStateTable.stateVersion],
-                systemRow[SystemStateTable.lastEventId]
-            )
+            PendingWinTable.update({ PendingWinTable.id eq pendingWinId }) {
+                it[dealerConfirmed] = true
+                it[updatedAt] = now
+            }
 
-        PendingWinTable.update({ PendingWinTable.id eq pendingWinId }) {
-            it[dealerConfirmed] = true
-            it[updatedAt] = now
-        }
+            val nextVersion = nextStateVersion(systemRow)
+            val payload = """{"tableId":$tableId,"boxId":$boxId}"""
 
-        val nextVersion = nextStateVersion(systemRow)
-
-        val payload = """{"tableId":$tableId,"boxId":$boxId}"""
-        val eventId = insertSyncEvent(
-            now,
-            SyncEventType.PayoutSelectedBox,
-            payload,
-            nextVersion
-        )
-
-        updateSystemState(nextVersion, eventId, now)
-
-        CommandWriteResult(
-            stateVersion = nextVersion,
-            lastEventId = eventId,
-            liveEvent = LiveEventToBroadcast(
-                eventId = eventId,
-                ts = now,
+            val eventId = insertSyncEvent(
+                now = now,
                 type = SyncEventType.PayoutSelectedBox,
-                payloadJson = payload,
+                payload = payload,
                 stateVersion = nextVersion
             )
-        )
+
+            updateSystemState(
+                nextStateVersion = nextVersion,
+                eventId = eventId,
+                now = now
+            )
+
+            CommandWriteResult(
+                stateVersion = nextVersion,
+                lastEventId = eventId,
+                liveEvent = LiveEventToBroadcast(
+                    eventId = eventId,
+                    ts = now,
+                    type = SyncEventType.PayoutSelectedBox,
+                    payloadJson = payload,
+                    stateVersion = nextVersion
+                )
+            )
+        }
+
+        result.liveEvent?.let { broadcastLiveEvent(it) }
+        return result
     }
 
-    // ============================================================
-    // Confirm payout
-    // ============================================================
-
-    suspend fun confirmPayoutTransactional(
+    suspend fun confirmPayout(
         tableId: Int
-    ): CommandWriteResult = dbQuery {
+    ): CommandWriteResult {
+        val result = dbQuery {
+            val now = System.currentTimeMillis()
 
-        val now = System.currentTimeMillis()
+            val systemRow = loadSystemRow()
+            require(currentSystemMode(systemRow) == SystemMode.PAYOUT_PENDING) {
+                "System is not in PAYOUT_PENDING"
+            }
 
-        val systemRow = loadSystemRow()
-        require(currentSystemMode(systemRow) == SystemMode.PAYOUT_PENDING)
+            val pendingWinId = systemRow[SystemStateTable.pendingWinId]
+                ?: error("No pending win")
 
-        val pendingWinId = systemRow[SystemStateTable.pendingWinId]
-            ?: error("No pending win")
+            val row = PendingWinTable.selectAll()
+                .where { PendingWinTable.id eq pendingWinId }
+                .single()
 
-        val row = PendingWinTable.selectAll()
-            .where { PendingWinTable.id eq pendingWinId }
-            .single()
+            require(row[PendingWinTable.tableId] == tableId) {
+                "Pending win belongs to table ${row[PendingWinTable.tableId]}"
+            }
 
-        require(row[PendingWinTable.tableId] == tableId)
-        require(row[PendingWinTable.dealerConfirmed])
+            require(row[PendingWinTable.dealerConfirmed]) {
+                "Dealer has not confirmed winning box"
+            }
 
-        val jackpotId = row[PendingWinTable.jackpotId]
-        val winningBoxId = row[PendingWinTable.winningBoxId]
+            val jackpotId = row[PendingWinTable.jackpotId]
+            val winningBoxId = row[PendingWinTable.winningBoxId]
 
-        val cfg = JackpotConfigTable.selectAll()
-            .where { JackpotConfigTable.jackpotId eq jackpotId }
-            .single()
+            val cfg = JackpotConfigTable.selectAll()
+                .where { JackpotConfigTable.jackpotId eq jackpotId }
+                .single()
 
-        val resetAmount = cfg[JackpotConfigTable.resetAmount]
+            val resetAmount = cfg[JackpotConfigTable.resetAmount]
 
-        JackpotStateTable.update({
-            JackpotStateTable.jackpotId eq jackpotId
-        }) {
-            it[currentAmount] = resetAmount
-            it[gamesSinceLastHit] = 0
-            it[updatedAt] = now
-        }
+            JackpotStateTable.update({
+                JackpotStateTable.jackpotId eq jackpotId
+            }) {
+                it[currentAmount] = resetAmount
+                it[gamesSinceLastHit] = 0
+                it[updatedAt] = now
+            }
 
-        JackpotHitTable.update({
-            (JackpotHitTable.jackpotId eq jackpotId) and
-                    (JackpotHitTable.tableId eq tableId) and
-                    (JackpotHitTable.status eq "PENDING_CONFIRM")
-        }) {
-            it[payoutConfirmedAt] = now
-            it[confirmedBoxId] = winningBoxId
-            it[status] = "CONFIRMED"
-        }
+            JackpotHitTable.update({
+                (JackpotHitTable.jackpotId eq jackpotId) and
+                        (JackpotHitTable.tableId eq tableId) and
+                        (JackpotHitTable.status eq "PENDING_CONFIRM")
+            }) {
+                it[payoutConfirmedAt] = now
+                it[confirmedBoxId] = winningBoxId
+                it[status] = "CONFIRMED"
+            }
 
-        val nextVersion = nextStateVersion(systemRow)
+            val nextVersion = nextStateVersion(systemRow)
+            val payload = """{"tableId":$tableId,"boxId":$winningBoxId}"""
 
-        val payload =
-            """{"tableId":$tableId,"boxId":$winningBoxId}"""
-        val eventId = insertSyncEvent(
-            now,
-            SyncEventType.PayoutConfirmed,
-            payload,
-            nextVersion
-        )
-
-        updateSystemState(
-            nextVersion,
-            eventId,
-            now,
-            SystemMode.ACCEPTING_BETS,
-            null,
-            true
-        )
-
-        CommandWriteResult(
-            stateVersion = nextVersion,
-            lastEventId = eventId,
-            liveEvent = LiveEventToBroadcast(
-                eventId = eventId,
-                ts = now,
+            val eventId = insertSyncEvent(
+                now = now,
                 type = SyncEventType.PayoutConfirmed,
-                payloadJson = payload,
+                payload = payload,
                 stateVersion = nextVersion
             )
-        )
+
+            updateSystemState(
+                nextStateVersion = nextVersion,
+                eventId = eventId,
+                now = now,
+                systemMode = SystemMode.ACCEPTING_BETS,
+                pendingWinId = null,
+                updatePendingWin = true
+            )
+
+            CommandWriteResult(
+                stateVersion = nextVersion,
+                lastEventId = eventId,
+                liveEvent = LiveEventToBroadcast(
+                    eventId = eventId,
+                    ts = now,
+                    type = SyncEventType.PayoutConfirmed,
+                    payloadJson = payload,
+                    stateVersion = nextVersion
+                )
+            )
+        }
+
+        result.liveEvent?.let { broadcastLiveEvent(it) }
+        return result
     }
 }
