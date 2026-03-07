@@ -33,12 +33,19 @@ class DefaultCommandService(
             return CommandResult.Rejected("System is not accepting bets")
         }
 
-        hostWriteRepository.toggleBoxTransactional(
-            tableId = command.tableId,
-            boxId = command.boxId
-        )
-
-        return CommandResult.Accepted
+        return try {
+            hostWriteRepository.toggleBoxTransactional(
+                tableId = command.tableId,
+                boxId = command.boxId
+            )
+            CommandResult.Accepted
+        } catch (e: IllegalArgumentException) {
+            CommandResult.Rejected(e.message ?: "Invalid toggle request")
+        } catch (e: IllegalStateException) {
+            CommandResult.Rejected(e.message ?: "Invalid system state")
+        } catch (e: Throwable) {
+            CommandResult.Failed(e.message ?: "Failed to toggle box")
+        }
     }
 
     override suspend fun confirmBets(command: ConfirmBetsCommand): CommandResult {
@@ -53,13 +60,21 @@ class DefaultCommandService(
             return CommandResult.Rejected("System is not accepting bets")
         }
 
-        hostWriteRepository.confirmBetsTransactional(
-            tableId = command.tableId,
-            recentBoxTtlMs = config.recentBoxTtlMs,
-            randomRoll = { until -> randomProvider.nextInt(until) }
-        )
+        return try {
+            hostWriteRepository.confirmBetsTransactional(
+                tableId = command.tableId,
+                recentBoxTtlMs = config.recentBoxTtlMs,
+                randomRoll = { until -> randomProvider.nextInt(until) }
+            )
 
-        return CommandResult.Accepted
+            return CommandResult.Accepted
+        } catch (e: IllegalArgumentException) {
+            CommandResult.Rejected(e.message ?: "Invalid confirm bets request")
+        } catch (e: IllegalStateException) {
+            CommandResult.Rejected(e.message ?: "Invalid system state")
+        } catch (e: Throwable) {
+            CommandResult.Failed(e.message ?: "Failed to confirm bets")
+        }
     }
 
     override suspend fun selectPayoutBox(command: SelectPayoutBoxCommand): CommandResult {
