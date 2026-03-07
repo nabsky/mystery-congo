@@ -134,16 +134,18 @@ function fillTablesState(snapshot) {
 }
 
 async function refreshCurrentState() {
-    const [health, snapshot] = await Promise.all([
+    const [health, snapshotResponse] = await Promise.all([
         fetchJson("/health"),
         fetchJson("/snapshot")
     ]);
 
+    const snapshot = snapshotResponse.state;
+
     setServerStatus(true, `OK · stateVersion=${health.stateVersion} · lastEventId=${health.lastEventId}`);
+
     fillCards(snapshot);
     fillTablesState(snapshot);
-
-    document.getElementById("rawSnapshotBox").textContent = JSON.stringify(snapshot, null, 2);
+    document.getElementById("rawSnapshotBox").textContent = JSON.stringify(snapshotResponse, null, 2);
 }
 
 async function refreshBetBatches() {
@@ -262,7 +264,7 @@ async function refreshAll() {
             refreshBetBatches(),
             refreshJackpotHits(),
             refreshPendingWins(),
-            refreshJackpotSettings
+            refreshJackpotSettings(),
         ]);
     } catch (e) {
         console.error(e);
@@ -499,7 +501,7 @@ function connectWs() {
                     refreshBetBatches(),
                     refreshJackpotHits(),
                     refreshPendingWins(),
-                    refreshJackpotSettings
+                    refreshJackpotSettings(),
                 ]);
             }
         } catch (e) {

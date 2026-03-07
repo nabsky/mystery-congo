@@ -139,8 +139,9 @@ class TableDataSource(
 
                             when (event.type) {
                                 "BoxToggled" -> {
-                                    val snapshot: DemoState = client.get(snapshotUrl()).body()
-                                    _state.value = snapshot
+                                    val snapshot: SnapshotResponse = client.get(snapshotUrl()).body()
+                                    _state.value = snapshot.state
+                                    lastEventId.set(maxOf(lastEventId.get(), snapshot.lastEventId))
                                     lastSuccessfulSyncTime = System.currentTimeMillis()
                                     _isHostOnline.value = true
                                 }
@@ -160,8 +161,9 @@ class TableDataSource(
                                         )
                                     )
 
-                                    val snapshot: DemoState = client.get("$baseUrl/snapshot?tableId=$tableId").body()
-                                    _state.value = snapshot
+                                    val snapshot: SnapshotResponse = client.get("$baseUrl/snapshot?tableId=$tableId").body()
+                                    _state.value = snapshot.state
+                                    lastEventId.set(maxOf(lastEventId.get(), snapshot.lastEventId))
                                     lastSuccessfulSyncTime = System.currentTimeMillis()
                                     _isHostOnline.value = true
                                 }
@@ -181,6 +183,12 @@ class TableDataSource(
                                             winAmount = winAmount
                                         )
                                     )
+
+                                    val snapshot: SnapshotResponse = client.get(snapshotUrl()).body()
+                                    _state.value = snapshot.state
+                                    lastEventId.set(maxOf(lastEventId.get(), snapshot.lastEventId))
+                                    lastSuccessfulSyncTime = System.currentTimeMillis()
+                                    _isHostOnline.value = true
                                 }
 
                                 "PayoutSelectedBox" -> {
@@ -197,8 +205,20 @@ class TableDataSource(
                                 }
 
                                 "PayoutConfirmed" -> {
-                                    val snapshot: DemoState = client.get(snapshotUrl()).body()
-                                    _state.value = snapshot
+                                    val obj = Json.parseToJsonElement(event.payloadJson).jsonObject
+                                    val eventTableId = obj["tableId"]?.jsonPrimitive?.int ?: 0
+                                    val eventBoxId = obj["boxId"]?.jsonPrimitive?.int ?: 0
+
+                                    _events.tryEmit(
+                                        DemoEvent.DealerPayoutConfirmed(
+                                            tableId = eventTableId,
+                                            boxId = eventBoxId
+                                        )
+                                    )
+
+                                    val snapshot: SnapshotResponse = client.get("$baseUrl/snapshot?tableId=$tableId").body()
+                                    _state.value = snapshot.state
+                                    lastEventId.set(maxOf(lastEventId.get(), snapshot.lastEventId))
                                     lastSuccessfulSyncTime = System.currentTimeMillis()
                                     _isHostOnline.value = true
                                 }
