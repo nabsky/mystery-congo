@@ -82,11 +82,12 @@ class TableDataSource(
                     Log.w("TableDataSource", "Health check failed: ${it.message}")
                 }
 
-                val snapshot: DemoState = client.get(snapshotUrl()).body()
-                Log.d("TableDataSource", "Snapshot received: $snapshot")
+                val snapshot: SnapshotResponse = client.get(snapshotUrl()).body()
+                Log.d("TableDataSource", "Snapshot received: ${snapshot.state}, lastEventId=${snapshot.lastEventId}, stateVersion=${snapshot.stateVersion}")
 
-                _state.value = snapshot
-                lastEventId.set(0L)
+                _state.value = snapshot.state
+                lastEventId.set(snapshot.lastEventId)
+
                 _connectionState.value = ConnectionState.CONNECTED
                 lastSuccessfulSyncTime = System.currentTimeMillis()
                 _isHostOnline.value = true
@@ -292,6 +293,13 @@ class TableDataSource(
             Log.e("TableDataSource", "Failed to confirm payout", it)
         }
     }
+
+    @Serializable
+    data class SnapshotResponse(
+        val state: DemoState,
+        val stateVersion: Long = 0,
+        val lastEventId: Long = 0
+    )
 
     @Serializable
     data class SyncResponse(

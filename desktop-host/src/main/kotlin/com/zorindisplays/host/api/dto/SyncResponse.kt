@@ -9,3 +9,10 @@ data class SyncResponse(
     val events: List<SyncEventDto>
 )
 
+@Serializable
+data class SyncEventDto(
+    val eventId: Long,
+    val ts: Long,
+    val type: String,
+    val payloadJson: String
+)
