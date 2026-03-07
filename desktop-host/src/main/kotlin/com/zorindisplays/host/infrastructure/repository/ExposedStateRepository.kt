@@ -82,7 +82,8 @@ class ExposedStateRepository {
                         id = row[PendingWinTable.id],
                         jackpotId = JackpotId.valueOf(row[PendingWinTable.jackpotId]),
                         tableId = row[PendingWinTable.tableId],
-                        boxId = row[PendingWinTable.selectedBoxId],
+                        winningBoxId = row[PendingWinTable.winningBoxId],
+                        dealerConfirmed = row[PendingWinTable.dealerConfirmed],
                         winAmount = row[PendingWinTable.winAmount],
                         createdAt = row[PendingWinTable.createdAt]
                     )

@@ -25,11 +25,10 @@ class SnapshotProjection {
                 SystemMode.PAYOUT_PENDING -> DemoStateDto.SystemModeDto.PAYOUT_PENDING
             },
             pendingWin = state.pendingWin?.let { pending ->
-                val selectedBox = pending.boxId ?: -1
                 DemoStateDto.PendingWinDto(
                     jackpotId = pending.jackpotId.name,
                     tableId = pending.tableId,
-                    boxId = selectedBox,
+                    boxId = pending.winningBoxId,
                     winAmount = pending.winAmount
                 )
             }

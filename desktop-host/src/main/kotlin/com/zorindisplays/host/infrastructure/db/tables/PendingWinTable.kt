@@ -6,7 +6,8 @@ object PendingWinTable : Table("pending_win") {
     val id = long("id").autoIncrement()
     val jackpotId = varchar("jackpot_id", 16)
     val tableId = integer("table_id")
-    val selectedBoxId = integer("selected_box_id").nullable()
+    val winningBoxId = integer("winning_box_id")
+    val dealerConfirmed = bool("dealer_confirmed")
     val winAmount = long("win_amount")
     val status = varchar("status", 32)
     val createdAt = long("created_at")
@@ -14,4 +15,3 @@ object PendingWinTable : Table("pending_win") {
 
     override val primaryKey = PrimaryKey(id)
 }
-
