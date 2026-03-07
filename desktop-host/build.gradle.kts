@@ -11,6 +11,7 @@ dependencies {
     implementation("io.ktor:ktor-serialization-kotlinx-json-jvm:2.3.12")
     implementation("io.ktor:ktor-server-call-logging-jvm:2.3.12")
     implementation("io.ktor:ktor-server-status-pages-jvm:2.3.12")
+    implementation("io.ktor:ktor-server-websockets:2.3.12")
 
     implementation("ch.qos.logback:logback-classic:1.4.14")
     implementation("org.jetbrains.exposed:exposed-core:0.50.1")

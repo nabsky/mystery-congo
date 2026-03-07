@@ -226,6 +226,11 @@ function setupToolbar() {
             stopAutoRefresh();
         }
     });
+
+    document.getElementById("clearLiveEventsBtn")?.addEventListener("click", () => {
+        liveEvents.length = 0;
+        document.getElementById("liveEventsBody").innerHTML = "";
+    });
 }
 
 function startAutoRefresh() {
@@ -242,10 +247,80 @@ function stopAutoRefresh() {
     }
 }
 
+let ws = null;
+const liveEvents = [];
+const MAX_LIVE_EVENTS = 200;
+
+function appendLiveEventRow(msg) {
+    liveEvents.unshift(msg);
+    if (liveEvents.length > MAX_LIVE_EVENTS) {
+        liveEvents.length = MAX_LIVE_EVENTS;
+    }
+
+    const tbody = document.getElementById("liveEventsBody");
+    tbody.innerHTML = liveEvents.map(event => `
+        <tr>
+            <td class="mono">${event.eventId ?? ""}</td>
+            <td>${tsFormatter(event.ts)}</td>
+            <td><span class="badge text-bg-primary">${escapeHtml(event.eventType ?? event.type)}</span></td>
+            <td class="mono">${event.stateVersion ?? ""}</td>
+            <td><code>${escapeHtml(event.payloadJson ?? event.message ?? "")}</code></td>
+        </tr>
+    `).join("");
+}
+
+function connectWs() {
+    const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+    const url = `${protocol}//${location.host}/admin/ws`;
+
+    ws = new WebSocket(url);
+
+    ws.onopen = () => {
+        console.log("Admin WS connected");
+        setServerStatus(true, "WS connected");
+    };
+
+    ws.onmessage = async (event) => {
+        try {
+            const msg = JSON.parse(event.data);
+            console.log("WS message", msg);
+
+            if (msg.type === "connected" || msg.type === "pong") {
+                appendLiveEventRow(msg);
+                return;
+            }
+
+            if (msg.type === "event") {
+                appendLiveEventRow(msg);
+
+                await Promise.all([
+                    refreshCurrentState(),
+                    refreshBetBatches(),
+                    refreshJackpotHits(),
+                    refreshPendingWins()
+                ]);
+            }
+        } catch (e) {
+            console.error("Failed to parse WS message", e);
+        }
+    };
+
+    ws.onclose = () => {
+        console.log("Admin WS closed");
+        setServerStatus(false, "WS disconnected, reconnecting...");
+        setTimeout(connectWs, 2000);
+    };
+
+    ws.onerror = (e) => {
+        console.error("WS error", e);
+    };
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
     initTables();
     setupFilters();
     setupToolbar();
     await refreshAll();
     startAutoRefresh();
+    connectWs();
 });

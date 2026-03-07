@@ -85,6 +85,11 @@
                 Pending Wins
             </button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="live-events-tab" data-bs-toggle="tab" data-bs-target="#live-events-pane" type="button">
+                Live Events
+            </button>
+        </li>
     </ul>
 
     <div class="tab-content">
@@ -255,6 +260,33 @@
                         </tr>
                         </thead>
                     </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="live-events-pane">
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Live Event Monitor</span>
+                    <div class="d-flex gap-2">
+                        <button id="clearLiveEventsBtn" class="btn btn-sm btn-outline-secondary">Clear</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped align-middle mb-0">
+                            <thead>
+                            <tr>
+                                <th>Event ID</th>
+                                <th>Time</th>
+                                <th>Type</th>
+                                <th>State Version</th>
+                                <th>Payload</th>
+                            </tr>
+                            </thead>
+                            <tbody id="liveEventsBody"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>

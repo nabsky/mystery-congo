@@ -2,6 +2,7 @@ package com.zorindisplays.host.app
 
 import com.zorindisplays.host.admin.AdminHistoryRepository
 import com.zorindisplays.host.admin.registerAdminRoutes
+import com.zorindisplays.host.api.registerAdminWsRoutes
 import com.zorindisplays.host.api.registerHealthRoutes
 import com.zorindisplays.host.api.registerInputRoutes
 import com.zorindisplays.host.api.registerSnapshotRoutes
@@ -19,6 +20,8 @@ import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.routing.routing
 import io.ktor.server.response.respondRedirect
 import io.ktor.server.routing.get
+import io.ktor.server.websocket.*
+import java.time.Duration
 
 fun Application.appModule(
     queryService: QueryService,
@@ -28,6 +31,10 @@ fun Application.appModule(
     install(CallLogging)
     install(ContentNegotiation) { json() }
     install(StatusPages) { }
+    install(WebSockets) {
+        pingPeriod = Duration.ofSeconds(30)
+        timeout = Duration.ofSeconds(30)
+    }
 
     routing {
         registerHealthRoutes(queryService)
@@ -35,6 +42,7 @@ fun Application.appModule(
         registerSyncRoutes(queryService)
         registerInputRoutes(commandService)
         registerAdminRoutes(adminHistoryRepository)
+        registerAdminWsRoutes()
 
         get("/mystery") {
             call.respondRedirect("/admin/ui/index.html")

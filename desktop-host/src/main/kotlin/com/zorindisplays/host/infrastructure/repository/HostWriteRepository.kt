@@ -6,12 +6,25 @@ import com.zorindisplays.host.infrastructure.db.dbQuery
 import com.zorindisplays.host.infrastructure.db.tables.*
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import com.zorindisplays.host.admin.AdminLiveMessage
+import com.zorindisplays.host.admin.AdminWsHub
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 class HostWriteRepository {
 
+    data class LiveEventToBroadcast(
+        val eventId: Long,
+        val ts: Long,
+        val type: SyncEventType,
+        val payloadJson: String,
+        val stateVersion: Long
+    )
+
     data class CommandWriteResult(
         val stateVersion: Long,
-        val lastEventId: Long
+        val lastEventId: Long,
+        val liveEvent: LiveEventToBroadcast? = null
     )
 
     // ============================================================
@@ -70,6 +83,27 @@ class HostWriteRepository {
         }
     }
 
+    private suspend fun broadcastLiveEvent(
+        eventId: Long,
+        now: Long,
+        type: SyncEventType,
+        payload: String,
+        stateVersion: Long
+    ) {
+        AdminWsHub.broadcast(
+            Json.encodeToString(
+                AdminLiveMessage(
+                    type = "event",
+                    eventType = type.name,
+                    payloadJson = payload,
+                    stateVersion = stateVersion,
+                    eventId = eventId,
+                    ts = now
+                )
+            )
+        )
+    }
+
     // ============================================================
     // Toggle Box
     // ============================================================
@@ -109,16 +143,27 @@ class HostWriteRepository {
 
         val nextVersion = nextStateVersion(systemRow)
 
+        val payload = """{"tableId":$tableId,"boxId":$boxId}"""
         val eventId = insertSyncEvent(
             now,
             SyncEventType.BoxToggled,
-            """{"tableId":$tableId,"boxId":$boxId}""",
+            payload,
             nextVersion
         )
 
         updateSystemState(nextVersion, eventId, now)
 
-        CommandWriteResult(nextVersion, eventId)
+        CommandWriteResult(
+            stateVersion = nextVersion,
+            lastEventId = eventId,
+            liveEvent = LiveEventToBroadcast(
+                eventId = eventId,
+                ts = now,
+                type = SyncEventType.BoxToggled,
+                payloadJson = payload,
+                stateVersion = nextVersion
+            )
+        )
     }
 
     // ============================================================
@@ -303,10 +348,12 @@ class HostWriteRepository {
 
             val nextVersion = currentStateVersion + 1
 
+            val payload =
+                """{"jackpotId":"${hit.jackpotId.name}","tableId":${hit.tableId},"boxId":${hit.winningBoxId},"winAmount":${hit.winAmount}}"""
             val eventId = insertSyncEvent(
                 now,
                 SyncEventType.JackpotHitDetected,
-                """{"jackpotId":"${hit.jackpotId.name}","tableId":${hit.tableId},"boxId":${hit.winningBoxId},"winAmount":${hit.winAmount}}""",
+                payload,
                 nextVersion
             )
 
@@ -318,22 +365,43 @@ class HostWriteRepository {
                 pendingWinId,
                 true
             )
-
-            return@dbQuery CommandWriteResult(nextVersion, eventId)
+            return@dbQuery CommandWriteResult(
+                stateVersion = nextVersion,
+                lastEventId = eventId,
+                liveEvent = LiveEventToBroadcast(
+                    eventId = eventId,
+                    ts = now,
+                    type = SyncEventType.JackpotHitDetected,
+                    payloadJson = payload,
+                    stateVersion = nextVersion
+                )
+            )
         }
 
         val nextVersion = currentStateVersion + 1
 
+        val payload =
+            """{"tableId":$tableId,"boxIds":[${activeBoxes.joinToString(",")}]}"""
         val eventId = insertSyncEvent(
             now,
             SyncEventType.BetsConfirmed,
-            """{"tableId":$tableId,"boxIds":[${activeBoxes.joinToString(",")}]}""",
+            payload,
             nextVersion
         )
 
         updateSystemState(nextVersion, eventId, now)
 
-        CommandWriteResult(nextVersion, eventId)
+        CommandWriteResult(
+            stateVersion = nextVersion,
+            lastEventId = eventId,
+            liveEvent = LiveEventToBroadcast(
+                eventId = eventId,
+                ts = now,
+                type = SyncEventType.BetsConfirmed,
+                payloadJson = payload,
+                stateVersion = nextVersion
+            )
+        )
     }
 
     // ============================================================
@@ -380,16 +448,27 @@ class HostWriteRepository {
 
         val nextVersion = nextStateVersion(systemRow)
 
+        val payload = """{"tableId":$tableId,"boxId":$boxId}"""
         val eventId = insertSyncEvent(
             now,
             SyncEventType.PayoutSelectedBox,
-            """{"tableId":$tableId,"boxId":$boxId}""",
+            payload,
             nextVersion
         )
 
         updateSystemState(nextVersion, eventId, now)
 
-        CommandWriteResult(nextVersion, eventId)
+        CommandWriteResult(
+            stateVersion = nextVersion,
+            lastEventId = eventId,
+            liveEvent = LiveEventToBroadcast(
+                eventId = eventId,
+                ts = now,
+                type = SyncEventType.PayoutSelectedBox,
+                payloadJson = payload,
+                stateVersion = nextVersion
+            )
+        )
     }
 
     // ============================================================
@@ -444,10 +523,12 @@ class HostWriteRepository {
 
         val nextVersion = nextStateVersion(systemRow)
 
+        val payload =
+            """{"tableId":$tableId,"boxId":$winningBoxId}"""
         val eventId = insertSyncEvent(
             now,
             SyncEventType.PayoutConfirmed,
-            """{"tableId":$tableId,"boxId":$winningBoxId}""",
+            payload,
             nextVersion
         )
 
@@ -460,6 +541,16 @@ class HostWriteRepository {
             true
         )
 
-        CommandWriteResult(nextVersion, eventId)
+        CommandWriteResult(
+            stateVersion = nextVersion,
+            lastEventId = eventId,
+            liveEvent = LiveEventToBroadcast(
+                eventId = eventId,
+                ts = now,
+                type = SyncEventType.PayoutConfirmed,
+                payloadJson = payload,
+                stateVersion = nextVersion
+            )
+        )
     }
 }
