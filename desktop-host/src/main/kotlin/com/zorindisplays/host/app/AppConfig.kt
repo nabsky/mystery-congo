@@ -11,7 +11,9 @@ data class AppConfig(
     val dbPoolMaxSize: Int,
     val dbPoolMinIdle: Int,
     val tableCount: Int,
-    val boxCount: Int
+    val boxCount: Int,
+    val adminUsername: String,
+    val adminPassword: String
 ) {
     companion object {
         fun fromEnv(): AppConfig {
@@ -26,7 +28,9 @@ data class AppConfig(
                 dbPoolMaxSize = System.getenv("DB_POOL_MAX_SIZE")?.toIntOrNull() ?: 10,
                 dbPoolMinIdle = System.getenv("DB_POOL_MIN_IDLE")?.toIntOrNull() ?: 2,
                 tableCount = System.getenv("TABLE_COUNT")?.toIntOrNull() ?: 8,
-                boxCount = System.getenv("BOX_COUNT")?.toIntOrNull() ?: 9
+                boxCount = System.getenv("BOX_COUNT")?.toIntOrNull() ?: 9,
+                adminUsername = System.getenv("ADMIN_USERNAME") ?: "admin",
+                adminPassword = System.getenv("ADMIN_PASSWORD") ?: "admin123",
             )
         }
     }

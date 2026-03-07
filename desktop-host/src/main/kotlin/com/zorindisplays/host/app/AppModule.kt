@@ -22,8 +22,18 @@ import io.ktor.server.response.respondRedirect
 import io.ktor.server.routing.get
 import io.ktor.server.websocket.*
 import java.time.Duration
+import io.ktor.server.auth.authenticate
+import io.ktor.server.auth.basic
+import io.ktor.server.auth.UserIdPrincipal
+import io.ktor.server.auth.Authentication
+import io.ktor.server.response.respondText
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.call
+import io.ktor.server.http.content.staticResources
+import io.ktor.server.response.respondRedirect
 
 fun Application.appModule(
+    config: AppConfig,
     queryService: QueryService,
     commandService: CommandService,
     adminHistoryRepository: AdminHistoryRepository
@@ -35,19 +45,37 @@ fun Application.appModule(
         pingPeriod = Duration.ofSeconds(30)
         timeout = Duration.ofSeconds(30)
     }
+    install(Authentication) {
+        basic("admin-auth") {
+            realm = "Mystery Admin"
+            validate { credentials ->
+                if (
+                    credentials.name == config.adminUsername &&
+                    credentials.password == config.adminPassword
+                ) {
+                    UserIdPrincipal(credentials.name)
+                } else {
+                    null
+                }
+            }
+        }
+    }
 
     routing {
         registerHealthRoutes(queryService)
         registerSnapshotRoutes(queryService)
         registerSyncRoutes(queryService)
         registerInputRoutes(commandService)
-        registerAdminRoutes(adminHistoryRepository)
-        registerAdminWsRoutes()
 
-        get("/mystery") {
-            call.respondRedirect("/admin/ui/index.html")
+        authenticate("admin-auth") {
+            registerAdminRoutes(adminHistoryRepository)
+            registerAdminWsRoutes()
+
+            get("/mystery") {
+                call.respondRedirect("/admin/ui/index.html")
+            }
+
+            staticResources("/admin/ui", "static/admin")
         }
-
-        staticResources("/admin/ui", "static/admin")
     }
 }

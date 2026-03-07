@@ -68,6 +68,7 @@ fun main() {
 
     embeddedServer(Netty, port = config.port, host = config.host) {
         appModule(
+            config = config,
             queryService = queryService,
             commandService = commandService,
             adminHistoryRepository = adminHistoryRepository
