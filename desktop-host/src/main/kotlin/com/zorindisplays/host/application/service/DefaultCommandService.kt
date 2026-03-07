@@ -16,6 +16,7 @@ import com.zorindisplays.host.infrastructure.repository.ExposedPendingWinReposit
 import com.zorindisplays.host.infrastructure.repository.ExposedStateRepository
 import com.zorindisplays.host.infrastructure.repository.ExposedSyncEventRepository
 import com.zorindisplays.host.infrastructure.repository.ExposedTableSelectionRepository
+import com.zorindisplays.host.infrastructure.repository.HostWriteRepository
 
 class DefaultCommandService(
     private val config: AppConfig,
@@ -24,6 +25,7 @@ class DefaultCommandService(
     private val syncEventRepository: ExposedSyncEventRepository,
     private val jackpotRepository: ExposedJackpotRepository,
     private val pendingWinRepository: ExposedPendingWinRepository,
+    private val hostWriteRepository: HostWriteRepository,
     private val randomProvider: RandomProvider = DefaultRandomProvider
 ) : CommandService {
 
@@ -69,87 +71,12 @@ class DefaultCommandService(
             return CommandResult.Rejected("System is not accepting bets")
         }
 
-        val activeBoxes = tableSelectionRepository.getActiveBoxes(command.tableId).sorted()
-        if (activeBoxes.isEmpty()) {
-            return CommandResult.Accepted
-        }
-
-        val jackpotConfigs = jackpotRepository.getConfigs()
-            .filter { it.enabled }
-            .sortedBy { it.priorityOrder }
-
-        val jackpotStatesById = jackpotRepository.getStates()
-            .associateBy { it.jackpotId }
-            .toMutableMap()
-
-        var hitPendingWin: PendingWin? = null
-
-        activeBoxesLoop@ for (boxId in activeBoxes) {
-            jackpotConfigs.forEach { jackpotConfig ->
-                val current = jackpotStatesById.getValue(jackpotConfig.jackpotId)
-                jackpotStatesById[jackpotConfig.jackpotId] = current.copy(
-                    currentAmount = current.currentAmount + jackpotConfig.contributionPerBet,
-                    gamesSinceLastHit = current.gamesSinceLastHit + 1
-                )
-            }
-
-            for (jackpotConfig in jackpotConfigs) {
-                val roll = randomProvider.nextInt(jackpotConfig.hitFrequencyGames)
-                if (roll == 0) {
-                    val updatedState = jackpotStatesById.getValue(jackpotConfig.jackpotId)
-                    jackpotStatesById[jackpotConfig.jackpotId] = updatedState.copy(
-                        gamesSinceLastHit = 0
-                    )
-
-                    hitPendingWin = PendingWin(
-                        jackpotId = jackpotConfig.jackpotId,
-                        tableId = command.tableId,
-                        winningBoxId = boxId,
-                        dealerConfirmed = false,
-                        winAmount = updatedState.currentAmount,
-                        createdAt = System.currentTimeMillis()
-                    )
-                    break@activeBoxesLoop
-                }
-            }
-        }
-
-        val now = System.currentTimeMillis()
-        tableSelectionRepository.touchTable(command.tableId, now)
-        tableSelectionRepository.markRecentBoxes(
+        hostWriteRepository.confirmBetsTransactional(
             tableId = command.tableId,
-            boxIds = activeBoxes.toSet(),
-            ttlMs = config.recentBoxTtlMs
-        )
-        tableSelectionRepository.clearActiveBoxes(command.tableId)
-        jackpotRepository.saveStates(jackpotStatesById.values.toList())
-
-        val nextStateVersion = state.stateVersion + 1
-
-        if (hitPendingWin != null) {
-            val savedPendingWinId = pendingWinRepository.savePendingWin(hitPendingWin)
-            stateRepository.updateSystemMode(SystemMode.PAYOUT_PENDING)
-
-            val eventId = syncEventRepository.append(
-                type = SyncEventType.JackpotHitDetected,
-                payloadJson = """
-                    {"jackpotId":"${hitPendingWin.jackpotId.name}","tableId":${hitPendingWin.tableId},"boxId":${hitPendingWin.winningBoxId},"winAmount":${hitPendingWin.winAmount}}
-                """.trimIndent().replace("\n", "").replace(" ", ""),
-                stateVersion = nextStateVersion
-            )
-
-            stateRepository.updateStateVersionAndLastEvent(nextStateVersion, eventId)
-            return CommandResult.Accepted
-        }
-
-        val boxIdsJson = activeBoxes.joinToString(",")
-        val eventId = syncEventRepository.append(
-            type = SyncEventType.BetsConfirmed,
-            payloadJson = """{"tableId":${command.tableId},"boxIds":[$boxIdsJson]}""",
-            stateVersion = nextStateVersion
+            recentBoxTtlMs = config.recentBoxTtlMs,
+            randomRoll = { until -> randomProvider.nextInt(until) }
         )
 
-        stateRepository.updateStateVersionAndLastEvent(nextStateVersion, eventId)
         return CommandResult.Accepted
     }
 
@@ -157,33 +84,22 @@ class DefaultCommandService(
         val state = stateRepository.getCurrentState()
             ?: return CommandResult.Failed("State not initialized")
 
-        val pendingWin = state.pendingWin
-            ?: return CommandResult.Rejected("No pending win")
-
         if (state.systemMode != SystemMode.PAYOUT_PENDING) {
             return CommandResult.Rejected("System is not in PAYOUT_PENDING")
         }
 
-        if (pendingWin.tableId != command.tableId) {
-            return CommandResult.Rejected("Pending win belongs to table ${pendingWin.tableId}")
+        if (command.tableId !in 1..config.tableCount) {
+            return CommandResult.Rejected("Invalid tableId=${command.tableId}")
         }
 
-        if (pendingWin.winningBoxId != command.boxId) {
-            return CommandResult.Accepted
+        if (command.boxId !in 1..config.boxCount) {
+            return CommandResult.Rejected("Invalid boxId=${command.boxId}")
         }
 
-        if (!pendingWin.dealerConfirmed && pendingWin.id != null) {
-            pendingWinRepository.markDealerConfirmed(pendingWin.id)
-
-            val nextStateVersion = state.stateVersion + 1
-            val eventId = syncEventRepository.append(
-                type = SyncEventType.PayoutSelectedBox,
-                payloadJson = """{"tableId":${command.tableId},"boxId":${command.boxId}}""",
-                stateVersion = nextStateVersion
-            )
-
-            stateRepository.updateStateVersionAndLastEvent(nextStateVersion, eventId)
-        }
+        hostWriteRepository.selectPayoutBoxTransactional(
+            tableId = command.tableId,
+            boxId = command.boxId
+        )
 
         return CommandResult.Accepted
     }
@@ -192,47 +108,23 @@ class DefaultCommandService(
         val state = stateRepository.getCurrentState()
             ?: return CommandResult.Failed("State not initialized")
 
-        val pendingWin = state.pendingWin
-            ?: return CommandResult.Rejected("No pending win")
-
         if (state.systemMode != SystemMode.PAYOUT_PENDING) {
             return CommandResult.Rejected("System is not in PAYOUT_PENDING")
         }
 
-        if (pendingWin.tableId != command.tableId) {
-            return CommandResult.Rejected("Pending win belongs to table ${pendingWin.tableId}")
+        if (command.tableId !in 1..config.tableCount) {
+            return CommandResult.Rejected("Invalid tableId=${command.tableId}")
         }
 
-        if (!pendingWin.dealerConfirmed) {
-            return CommandResult.Rejected("Dealer has not confirmed winning box")
+        return try {
+            hostWriteRepository.confirmPayoutTransactional(command.tableId)
+            CommandResult.Accepted
+        } catch (e: IllegalArgumentException) {
+            CommandResult.Rejected(e.message ?: "Invalid payout confirmation")
+        } catch (e: IllegalStateException) {
+            CommandResult.Rejected(e.message ?: "Invalid payout state")
+        } catch (e: Throwable) {
+            CommandResult.Failed(e.message ?: "Failed to confirm payout")
         }
-
-        val jackpotConfigs = jackpotRepository.getConfigs()
-        val jackpotStates = jackpotRepository.getStates().associateBy { it.jackpotId }.toMutableMap()
-
-        val winningConfig = jackpotConfigs.firstOrNull { it.jackpotId == pendingWin.jackpotId }
-            ?: return CommandResult.Failed("Jackpot config not found for ${pendingWin.jackpotId}")
-
-        val winningState = jackpotStates[pendingWin.jackpotId]
-            ?: return CommandResult.Failed("Jackpot state not found for ${pendingWin.jackpotId}")
-
-        jackpotStates[pendingWin.jackpotId] = winningState.copy(
-            currentAmount = winningConfig.resetAmount,
-            gamesSinceLastHit = 0
-        )
-
-        jackpotRepository.saveStates(jackpotStates.values.toList())
-        pendingWinRepository.clearPendingWin()
-        stateRepository.updateSystemMode(SystemMode.ACCEPTING_BETS)
-
-        val nextStateVersion = state.stateVersion + 1
-        val eventId = syncEventRepository.append(
-            type = SyncEventType.PayoutConfirmed,
-            payloadJson = """{"tableId":${command.tableId},"boxId":${pendingWin.winningBoxId}}""",
-            stateVersion = nextStateVersion
-        )
-
-        stateRepository.updateStateVersionAndLastEvent(nextStateVersion, eventId)
-        return CommandResult.Accepted
     }
 }

@@ -9,10 +9,12 @@ object BetBatchTable : Table("bet_batch") {
     val boxCount = integer("box_count")
     val result = varchar("result", 32).nullable()
     val winningJackpotId = varchar("winning_jackpot_id", 16).nullable()
+    val winningBoxId = integer("winning_box_id").nullable()
+
+    override val primaryKey = PrimaryKey(id)
+
     init {
         index(false, tableId)
         index(false, confirmedAt)
     }
-    override val primaryKey = PrimaryKey(id)
 }
-

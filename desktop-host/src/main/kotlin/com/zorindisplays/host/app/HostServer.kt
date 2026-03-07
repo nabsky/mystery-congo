@@ -23,6 +23,7 @@ import com.zorindisplays.host.infrastructure.repository.ExposedPendingWinReposit
 import com.zorindisplays.host.infrastructure.repository.ExposedStateRepository
 import com.zorindisplays.host.infrastructure.repository.ExposedSyncEventRepository
 import com.zorindisplays.host.infrastructure.repository.ExposedTableSelectionRepository
+import com.zorindisplays.host.infrastructure.repository.HostWriteRepository
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 
@@ -50,6 +51,7 @@ fun main() {
     val syncEventRepository = ExposedSyncEventRepository()
     val jackpotRepository = ExposedJackpotRepository()
     val pendingWinRepository = ExposedPendingWinRepository()
+    val hostWriteRepository = HostWriteRepository()
 
     val snapshotProjection = SnapshotProjection()
 
@@ -66,7 +68,8 @@ fun main() {
         tableSelectionRepository = tableSelectionRepository,
         syncEventRepository = syncEventRepository,
         jackpotRepository = jackpotRepository,
-        pendingWinRepository = pendingWinRepository
+        pendingWinRepository = pendingWinRepository,
+        hostWriteRepository = hostWriteRepository
     )
 
     embeddedServer(Netty, port = config.port, host = config.host) {
