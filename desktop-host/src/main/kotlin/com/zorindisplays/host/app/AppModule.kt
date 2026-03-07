@@ -1,9 +1,11 @@
 package com.zorindisplays.host.app
 
+import com.zorindisplays.host.admin.AdminDashboardRepository
 import com.zorindisplays.host.admin.AdminHistoryRepository
 import com.zorindisplays.host.admin.AdminSettingsRepository
 import com.zorindisplays.host.admin.registerAdminRoutes
 import com.zorindisplays.host.admin.registerAdminSettingsRoutes
+import com.zorindisplays.host.admin.registerAdminDashboardRoutes
 import com.zorindisplays.host.api.registerAdminWsRoutes
 import com.zorindisplays.host.api.registerHealthRoutes
 import com.zorindisplays.host.api.registerInputRoutes
@@ -28,18 +30,14 @@ import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.basic
 import io.ktor.server.auth.UserIdPrincipal
 import io.ktor.server.auth.Authentication
-import io.ktor.server.response.respondText
-import io.ktor.http.HttpStatusCode
-import io.ktor.server.application.call
-import io.ktor.server.http.content.staticResources
-import io.ktor.server.response.respondRedirect
 
 fun Application.appModule(
     config: AppConfig,
     queryService: QueryService,
     commandService: CommandService,
     adminHistoryRepository: AdminHistoryRepository,
-    adminSettingsRepository: AdminSettingsRepository
+    adminSettingsRepository: AdminSettingsRepository,
+    adminDashboardRepository: AdminDashboardRepository
 ) {
     install(CallLogging)
     install(ContentNegotiation) { json() }
@@ -73,6 +71,7 @@ fun Application.appModule(
         authenticate("admin-auth") {
             registerAdminRoutes(adminHistoryRepository)
             registerAdminSettingsRoutes(adminSettingsRepository)
+            registerAdminDashboardRoutes(adminDashboardRepository)
             registerAdminWsRoutes()
 
             get("/mystery") {

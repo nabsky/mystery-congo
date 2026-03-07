@@ -66,7 +66,12 @@
 
     <ul class="nav nav-tabs mb-3" id="adminTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="state-tab" data-bs-toggle="tab" data-bs-target="#state-pane" type="button">
+            <button class="nav-link active" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard-pane" type="button">
+                Dashboard
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="state-tab" data-bs-toggle="tab" data-bs-target="#state-pane" type="button">
                 Current State
             </button>
         </li>
@@ -98,6 +103,101 @@
     </ul>
 
     <div class="tab-content">
+        <div class="tab-pane fade show active" id="dashboard-pane">
+            <div class="row g-3">
+                <div class="col-12 col-md-3">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <div class="text-muted small">System Mode</div>
+                            <div class="fs-5 fw-semibold" id="dashboardSystemMode">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-3">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <div class="text-muted small">Active Tables</div>
+                            <div class="fs-5 fw-semibold" id="dashboardActiveTables">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-3">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <div class="text-muted small">Bet Batches Today</div>
+                            <div class="fs-5 fw-semibold" id="dashboardBatchesToday">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-3">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <div class="text-muted small">Jackpot Hits Today</div>
+                            <div class="fs-5 fw-semibold" id="dashboardHitsToday">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-lg-4">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header">Pending Win</div>
+                        <div class="card-body" id="dashboardPendingWinBox">
+                            <div class="text-muted">No pending win</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-lg-4">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header">Latest Jackpot Hit</div>
+                        <div class="card-body" id="dashboardLatestHitBox">
+                            <div class="text-muted">No hits yet</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-lg-4">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header">Current Jackpots</div>
+                        <div class="card-body">
+                            <div class="mb-2"><strong>RUBY:</strong> <span id="dashboardRuby">-</span></div>
+                            <div class="mb-2"><strong>GOLD:</strong> <span id="dashboardGold">-</span></div>
+                            <div><strong>JADE:</strong> <span id="dashboardJade">-</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <div class="card shadow-sm">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span>Latest Bet Batches</span>
+                            <button id="refreshDashboardBtn" class="btn btn-sm btn-outline-primary">Refresh</button>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-striped align-middle mb-0">
+                                    <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Table</th>
+                                        <th>Confirmed At</th>
+                                        <th>Result</th>
+                                        <th>Winning Jackpot</th>
+                                        <th>Winning Box</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody id="dashboardLatestBatchesBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="tab-pane fade show active" id="state-pane">
             <div class="card shadow-sm">
                 <div class="card-header">Current Snapshot</div>

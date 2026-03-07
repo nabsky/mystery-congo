@@ -202,9 +202,62 @@ async function refreshJackpotSettings() {
     }
 }
 
+async function refreshDashboard() {
+    const dashboard = await fetchJson("/admin/dashboard");
+
+    document.getElementById("dashboardSystemMode").textContent = dashboard.systemMode ?? "-";
+    document.getElementById("dashboardActiveTables").textContent = `${dashboard.activeTablesCount} / ${dashboard.totalTables}`;
+    document.getElementById("dashboardBatchesToday").textContent = dashboard.totalBatchesToday ?? 0;
+    document.getElementById("dashboardHitsToday").textContent = dashboard.totalHitsToday ?? 0;
+
+    document.getElementById("dashboardRuby").textContent = dashboard.jackpots?.RUBY ?? "-";
+    document.getElementById("dashboardGold").textContent = dashboard.jackpots?.GOLD ?? "-";
+    document.getElementById("dashboardJade").textContent = dashboard.jackpots?.JADE ?? "-";
+
+    const pendingWinBox = document.getElementById("dashboardPendingWinBox");
+    if (dashboard.pendingWin) {
+        pendingWinBox.innerHTML = `
+            <div class="mb-2"><strong>Jackpot:</strong> ${escapeHtml(dashboard.pendingWin.jackpotId)}</div>
+            <div class="mb-2"><strong>Table:</strong> ${dashboard.pendingWin.tableId}</div>
+            <div class="mb-2"><strong>Winning Box:</strong> ${dashboard.pendingWin.winningBoxId}</div>
+            <div class="mb-2"><strong>Amount:</strong> ${dashboard.pendingWin.winAmount}</div>
+            <div><strong>Dealer Confirmed:</strong> ${yesNoBadge(dashboard.pendingWin.dealerConfirmed)}</div>
+        `;
+    } else {
+        pendingWinBox.innerHTML = `<div class="text-muted">No pending win</div>`;
+    }
+
+    const latestHitBox = document.getElementById("dashboardLatestHitBox");
+    if (dashboard.latestHit) {
+        latestHitBox.innerHTML = `
+            <div class="mb-2"><strong>Jackpot:</strong> ${escapeHtml(dashboard.latestHit.jackpotId)}</div>
+            <div class="mb-2"><strong>Table:</strong> ${dashboard.latestHit.tableId}</div>
+            <div class="mb-2"><strong>Trigger Box:</strong> ${dashboard.latestHit.triggerBoxId}</div>
+            <div class="mb-2"><strong>Amount:</strong> ${dashboard.latestHit.winAmount}</div>
+            <div class="mb-2"><strong>Status:</strong> ${escapeHtml(dashboard.latestHit.status)}</div>
+            <div><strong>Hit At:</strong> ${tsFormatter(dashboard.latestHit.hitAt)}</div>
+        `;
+    } else {
+        latestHitBox.innerHTML = `<div class="text-muted">No hits yet</div>`;
+    }
+
+    const latestBatchesBody = document.getElementById("dashboardLatestBatchesBody");
+    latestBatchesBody.innerHTML = (dashboard.latestBatches || []).map(batch => `
+        <tr>
+            <td class="mono">${batch.id}</td>
+            <td>${batch.tableId}</td>
+            <td>${tsFormatter(batch.confirmedAt)}</td>
+            <td>${escapeHtml(batch.result ?? "")}</td>
+            <td>${escapeHtml(batch.winningJackpotId ?? "-")}</td>
+            <td>${batch.winningBoxId ?? "-"}</td>
+        </tr>
+    `).join("");
+}
+
 async function refreshAll() {
     try {
         await Promise.all([
+            refreshDashboard(),
             refreshCurrentState(),
             refreshBetBatches(),
             refreshJackpotHits(),
@@ -354,6 +407,10 @@ function setupSettingsUi() {
 }
 
 function setupToolbar() {
+    document.getElementById("refreshDashboardBtn")?.addEventListener("click", async () => {
+        await refreshDashboard();
+    });
+
     document.getElementById("refreshAllBtn").addEventListener("click", async () => {
         await refreshAll();
     });
@@ -437,6 +494,7 @@ function connectWs() {
                 appendLiveEventRow(msg);
 
                 await Promise.all([
+                    refreshDashboard(),
                     refreshCurrentState(),
                     refreshBetBatches(),
                     refreshJackpotHits(),
