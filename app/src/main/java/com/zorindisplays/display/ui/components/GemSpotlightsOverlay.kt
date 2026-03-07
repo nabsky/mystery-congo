@@ -21,10 +21,11 @@ fun GemSpotlightsOverlay(
     modifier: Modifier = Modifier,
     strength: Float = 1f,
     periodMs: Int = 12000,
-    winnerLevel: Int? = null,   // 1=ruby, 2=gold, 3=jade
-    winPhase: String = "None",  // "None", "Rain", "Focus", "Takeover"
+    winnerLevel: Int? = null,
+    winPhase: String = "None",
 ) {
     val tr = rememberInfiniteTransition(label = "gemSpotPulse")
+
     val pulse by tr.animateFloat(
         initialValue = 0.88f,
         targetValue = 1.00f,
@@ -46,10 +47,13 @@ fun GemSpotlightsOverlay(
         else -> null
     }
 
-    val isWinGlowPhase = (winPhase == "Rain" || winPhase == "Focus") && winnerColor != null
+    val isRain = winPhase == "Rain" && winnerColor != null
+    val isFocus = winPhase == "Focus" && winnerColor != null
+    val isWinGlowPhase = isRain || isFocus
+
     val boost = when {
-        winPhase == "Rain" && winnerColor != null -> 1.55f
-        winPhase == "Focus" && winnerColor != null -> 1.35f
+        isRain -> 1.55f
+        isFocus -> 1.35f
         else -> 1f
     }
 
@@ -87,33 +91,38 @@ fun GemSpotlightsOverlay(
                 )
             }
 
-            val rubySpotColor = if (isWinGlowPhase) winnerColor!! else rubyColor
-            val goldSpotColor = if (isWinGlowPhase) winnerColor!! else goldColor
-            val jadeSpotColor = if (isWinGlowPhase) winnerColor!! else jadeColor
+            val rubySpotColor = if (isWinGlowPhase) winnerColor else rubyColor
+            val goldSpotColor = if (isWinGlowPhase) winnerColor else goldColor
+            val jadeSpotColor = if (isWinGlowPhase) winnerColor else jadeColor
 
-            // Ruby
+            val rubyAnchor = if (isWinGlowPhase) Offset(0.68f, 0.18f) else Offset(0.79f, 0.15f)
+            val goldAnchor = if (isWinGlowPhase) Offset(0.32f, 0.38f) else Offset(0.24f, 0.42f)
+            val jadeAnchor = if (isWinGlowPhase) Offset(0.60f, 0.60f) else Offset(0.74f, 0.66f)
+
+            val rubyRadius = if (isRain) 0.24f else if (isFocus) 0.22f else 0.20f
+            val goldRadius = if (isRain) 0.23f else if (isFocus) 0.21f else 0.20f
+            val jadeRadius = if (isRain) 0.21f else if (isFocus) 0.19f else 0.18f
+
             glow(
-                anchor = Offset(0.79f, 0.15f),
+                anchor = rubyAnchor,
                 color = rubySpotColor,
                 alpha = 0.22f,
-                radiusFrac = 0.20f,
-                nudgePx = Offset(20f, -20f)
+                radiusFrac = rubyRadius,
+                nudgePx = if (isWinGlowPhase) Offset(10f, -10f) else Offset(20f, -20f)
             )
 
-            // Gold
             glow(
-                anchor = Offset(0.24f, 0.42f),
+                anchor = goldAnchor,
                 color = goldSpotColor,
                 alpha = 0.16f,
-                radiusFrac = 0.20f
+                radiusFrac = goldRadius
             )
 
-            // Jade
             glow(
-                anchor = Offset(0.74f, 0.66f),
+                anchor = jadeAnchor,
                 color = jadeSpotColor,
                 alpha = 0.14f,
-                radiusFrac = 0.18f
+                radiusFrac = jadeRadius
             )
         }
     }

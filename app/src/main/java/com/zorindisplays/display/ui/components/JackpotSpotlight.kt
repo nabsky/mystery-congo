@@ -27,10 +27,8 @@ fun JackpotSpotlight(
     }
 
     val spotlightColor =
-        if ((winPhase == "Rain" || winPhase == "Focus") && winnerColor != null)
-            winnerColor
-        else
-            baseColor
+        if ((winPhase == "Rain" || winPhase == "Focus") && winnerColor != null) winnerColor
+        else baseColor
 
     val alphaBoost = when {
         winPhase == "Rain" && winnerColor != null -> 1.6f
@@ -40,7 +38,7 @@ fun JackpotSpotlight(
 
     Canvas(modifier) {
         val center = Offset(size.width / 2f, size.height / 2f)
-        val radius = size.minDimension * 0.62f
+        val radius = size.minDimension * if (winPhase == "Rain") 0.72f else 0.62f
 
         drawCircle(
             brush = Brush.radialGradient(

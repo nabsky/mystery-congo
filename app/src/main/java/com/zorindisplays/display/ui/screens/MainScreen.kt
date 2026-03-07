@@ -365,34 +365,40 @@ fun MainScreen(
                 }
             )
 
+            var winnerLevel = when (val w = win) {
+                is WinPhase.Rain -> w.level
+                is WinPhase.Focus -> w.level
+                is WinPhase.Takeover -> w.level
+                else -> null
+            }
+
+            val winnerColor = when (winnerLevel) {
+                1 -> Color(0xFFFF2A2A)
+                2 -> Color(0xFFFFE08A)
+                3 -> Color(0xFF59E0A7)
+                else -> null
+            }
+            val isRainPhase = win is WinPhase.Rain
+            val isFocusPhase = win is WinPhase.Focus
+
+            winnerColor?.let { color ->
+                JackpotLightBeam(
+                    modifier = Modifier.fillMaxSize(),
+                    color = color,
+                    visible = isRainPhase || isFocusPhase
+                )
+
+                JackpotRainAura(
+                    modifier = Modifier.fillMaxSize(),
+                    color = color,
+                    visible = isRainPhase || isFocusPhase
+                )
+            }
+
             BreathingVignette(
                 modifier = Modifier.fillMaxSize(),
                 strength = 0.22f,
                 periodMs = 9000
-            )
-
-            TopBrandBar(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxWidth(),
-                text = "ALL JACKPOTS IN CFA",
-                fontFamily = MontserratBold
-            )
-
-            JackpotGemsOverlay(
-                modifier = Modifier.fillMaxSize(),
-                winnerLevel = when (win) {
-                    is WinPhase.Focus -> (win as WinPhase.Focus).level
-                    is WinPhase.Takeover -> (win as WinPhase.Takeover).level
-                    is WinPhase.Rain -> (win as WinPhase.Rain).level
-                    else -> null
-                },
-                winPhase = when (win) {
-                    is WinPhase.Focus -> "Focus"
-                    is WinPhase.Takeover -> "Takeover"
-                    is WinPhase.Rain -> "Rain"
-                    else -> "None"
-                }
             )
 
             // spotlight (можно усилить на focus)
@@ -418,6 +424,32 @@ fun MainScreen(
                     else -> "None"
                 }
             )
+
+
+            TopBrandBar(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth(),
+                text = "ALL JACKPOTS IN CFA",
+                fontFamily = MontserratBold
+            )
+
+            JackpotGemsOverlay(
+                modifier = Modifier.fillMaxSize(),
+                winnerLevel = when (win) {
+                    is WinPhase.Focus -> (win as WinPhase.Focus).level
+                    is WinPhase.Takeover -> (win as WinPhase.Takeover).level
+                    is WinPhase.Rain -> (win as WinPhase.Rain).level
+                    else -> null
+                },
+                winPhase = when (win) {
+                    is WinPhase.Focus -> "Focus"
+                    is WinPhase.Takeover -> "Takeover"
+                    is WinPhase.Rain -> "Rain"
+                    else -> "None"
+                }
+            )
+
         }
 
         // Дождь рисуем поверх base-сцены (но до takeover)
@@ -480,6 +512,15 @@ fun MainScreen(
         }
 
         if (!takeover) {
+
+            val amountGlowColor = when (winnerLevel) {
+                1 -> Color(0xFFFF2A2A)
+                2 -> Color(0xFFFFE08A)
+                3 -> Color(0xFF59E0A7)
+                else -> Color.Black
+            }
+
+            val isWinAmountGlow = win is WinPhase.Rain || win is WinPhase.Focus
             // Ruby
             val hostOnline = demo.jackpots.isNotEmpty()
             val displayRuby = if (winJackpotLevel==1 && winJackpotAmountMinor!=null && win !is WinPhase.None) winJackpotAmountMinor!! else jackpot1
@@ -499,7 +540,11 @@ fun MainScreen(
                         fractionDigits = 0,
                     ),
                     fillColor = Color(0xFFFF0000),
-                    shadow = TextShadowSpec(Color.Black.copy(alpha = 0.65f), Offset(0f, 11f), 22f),
+                    shadow = if (isWinAmountGlow && winnerLevel == 1) {
+                        TextShadowSpec(amountGlowColor.copy(alpha = 0.62f), Offset(0f, 0f), 42f)
+                    } else {
+                        TextShadowSpec(Color.Black.copy(alpha = 0.65f), Offset(0f, 11f), 22f)
+                    },
                     strokeColor = Color.Black.copy(alpha = 0.18f),
                     strokeWidth = 1.3.dp,
                     maxRollingDigitsFromEnd = 4,
@@ -538,7 +583,11 @@ fun MainScreen(
                         fractionDigits = 0,
                     ),
                     fillColor = Color(0xFFEEC239),
-                    shadow = TextShadowSpec(Color.Black.copy(alpha = 0.55f), Offset(0f, 8f), 18f),
+                    shadow = if (isWinAmountGlow && winnerLevel == 2) {
+                        TextShadowSpec(amountGlowColor.copy(alpha = 0.58f), Offset(0f, 0f), 38f)
+                    } else {
+                        TextShadowSpec(Color.Black.copy(alpha = 0.55f), Offset(0f, 8f), 18f)
+                    },
                     strokeColor = Color.Black.copy(alpha = 0.14f),
                     strokeWidth = 1.2.dp,
                     maxRollingDigitsFromEnd = 4,
@@ -577,7 +626,11 @@ fun MainScreen(
                         fractionDigits = 0,
                     ),
                     fillColor = Color(0xFF28A368),
-                    shadow = TextShadowSpec(Color.Black.copy(alpha = 0.55f), Offset(0f, 7f), 16f),
+                    shadow = if (isWinAmountGlow && winnerLevel == 3) {
+                        TextShadowSpec(amountGlowColor.copy(alpha = 0.58f), Offset(0f, 0f), 36f)
+                    } else {
+                        TextShadowSpec(Color.Black.copy(alpha = 0.55f), Offset(0f, 7f), 16f)
+                    },
                     strokeColor = Color.Black.copy(alpha = 0.14f),
                     strokeWidth = 1.2.dp,
                     maxRollingDigitsFromEnd = 4,

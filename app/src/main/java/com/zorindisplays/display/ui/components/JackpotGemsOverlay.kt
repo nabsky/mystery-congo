@@ -33,6 +33,7 @@ fun JackpotGemsOverlay(
     val ampPxJade = with(density) { 5.0.dp.toPx() }
 
     BoxWithConstraints(modifier = modifier) {
+        val scope = this
         val centerAnchor = Offset(0.5f, 0.38f)
         val winnerAnchorBottom = Offset(0.5f, 0.58f)
         val centerRotation = 0f

@@ -106,7 +106,7 @@ fun JackpotAmount(
     val t = (bright.value * brightenTo).coerceIn(0f, 1f)
 
     // Премиум “градиент” слоями:
-    val bottomLayer = mix(fillColor, Color.Black, depthDarken * (0.70f + 0.30f * t))
+    val bottomLayer = mix(fillColor, Color.Transparent, depthDarken * (0.70f + 0.30f * t))
     val topLayer = mix(fillColor, Color.White, topLighten * (0.60f + 0.40f * t))
 
     // Чуть “искрить” на пике — но без отдельной вспышки после:
