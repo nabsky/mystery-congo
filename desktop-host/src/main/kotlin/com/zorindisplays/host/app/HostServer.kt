@@ -1,5 +1,6 @@
 package com.zorindisplays.host.app
 
+import com.zorindisplays.host.admin.AdminHistoryRepository
 import com.zorindisplays.host.application.service.CommandService
 import com.zorindisplays.host.application.service.DefaultCommandService
 import com.zorindisplays.host.application.service.DefaultQueryService
@@ -48,6 +49,7 @@ fun main() {
     val syncEventRepository = ExposedSyncEventRepository()
     val tableSelectionRepository = ExposedTableSelectionRepository()
     val hostWriteRepository = HostWriteRepository()
+    val adminHistoryRepository = AdminHistoryRepository()
 
     val snapshotProjection = SnapshotProjection()
 
@@ -65,6 +67,10 @@ fun main() {
     )
 
     embeddedServer(Netty, port = config.port, host = config.host) {
-        appModule(queryService, commandService)
+        appModule(
+            queryService = queryService,
+            commandService = commandService,
+            adminHistoryRepository = adminHistoryRepository
+        )
     }.start(wait = true)
 }
