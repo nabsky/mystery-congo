@@ -27,7 +27,7 @@ import org.jetbrains.exposed.sql.update
 
 class HostWriteRepository {
 
-    data class ConfirmBetsResult(
+    data class CommandWriteResult(
         val stateVersion: Long,
         val lastEventId: Long
     )
@@ -36,7 +36,7 @@ class HostWriteRepository {
         tableId: Int,
         recentBoxTtlMs: Long,
         randomRoll: (Int) -> Int
-    ): ConfirmBetsResult = dbQuery {
+    ): CommandWriteResult = dbQuery {
         val systemRow = SystemStateTable.selectAll().single()
         val systemMode = SystemMode.valueOf(systemRow[SystemStateTable.systemMode])
         require(systemMode == SystemMode.ACCEPTING_BETS) { "System is not accepting bets" }
@@ -50,7 +50,7 @@ class HostWriteRepository {
             .sorted()
 
         if (activeBoxes.isEmpty()) {
-            return@dbQuery ConfirmBetsResult(
+            return@dbQuery CommandWriteResult(
                 stateVersion = currentStateVersion,
                 lastEventId = systemRow[SystemStateTable.lastEventId]
             )
@@ -166,21 +166,21 @@ class HostWriteRepository {
 
         if (pendingWin != null) {
             val pendingWinId = PendingWinTable.insert {
-                it[jackpotId] = pendingWin!!.jackpotId.name
-                it[PendingWinTable.tableId] = pendingWin!!.tableId
-                it[winningBoxId] = pendingWin!!.winningBoxId
+                it[jackpotId] = pendingWin.jackpotId.name
+                it[PendingWinTable.tableId] = pendingWin.tableId
+                it[winningBoxId] = pendingWin.winningBoxId
                 it[dealerConfirmed] = false
-                it[winAmount] = pendingWin!!.winAmount
+                it[winAmount] = pendingWin.winAmount
                 it[status] = "WAITING_CONFIRM"
                 it[createdAt] = now
                 it[updatedAt] = now
             } get PendingWinTable.id
 
             JackpotHitTable.insert {
-                it[jackpotId] = pendingWin!!.jackpotId.name
-                it[JackpotHitTable.tableId] = pendingWin!!.tableId
-                it[triggerBoxId] = pendingWin!!.winningBoxId
-                it[winAmount] = pendingWin!!.winAmount
+                it[jackpotId] = pendingWin.jackpotId.name
+                it[JackpotHitTable.tableId] = pendingWin.tableId
+                it[triggerBoxId] = pendingWin.winningBoxId
+                it[winAmount] = pendingWin.winAmount
                 it[JackpotHitTable.betBatchId] = betBatchId
                 it[hitAt] = now
                 it[payoutConfirmedAt] = null
@@ -193,19 +193,19 @@ class HostWriteRepository {
                 it[createdAt] = now
                 it[type] = SyncEventType.JackpotHitDetected.name
                 it[payloadJson] =
-                    """{"jackpotId":"${pendingWin!!.jackpotId.name}","tableId":${pendingWin!!.tableId},"boxId":${pendingWin!!.winningBoxId},"winAmount":${pendingWin!!.winAmount}}"""
+                    """{"jackpotId":"${pendingWin.jackpotId.name}","tableId":${pendingWin.tableId},"boxId":${pendingWin.winningBoxId},"winAmount":${pendingWin.winAmount}}"""
                 it[stateVersion] = nextStateVersion
             } get SyncEventTable.eventId
 
             SystemStateTable.update({ SystemStateTable.id eq 1 }) {
                 it[SystemStateTable.systemMode] = SystemMode.PAYOUT_PENDING.name
                 it[SystemStateTable.pendingWinId] = pendingWinId
-                it[SystemStateTable.stateVersion] = nextStateVersion
-                it[SystemStateTable.lastEventId] = eventId
-                it[SystemStateTable.updatedAt] = now
+                it[stateVersion] = nextStateVersion
+                it[lastEventId] = eventId
+                it[updatedAt] = now
             }
 
-            return@dbQuery ConfirmBetsResult(nextStateVersion, eventId)
+            return@dbQuery CommandWriteResult(nextStateVersion, eventId)
         } else {
             val nextStateVersion = currentStateVersion + 1
             val eventId = SyncEventTable.insert {
@@ -222,13 +222,13 @@ class HostWriteRepository {
                 it[updatedAt] = now
             }
 
-            return@dbQuery ConfirmBetsResult(nextStateVersion, eventId)
+            return@dbQuery CommandWriteResult(nextStateVersion, eventId)
         }
     }
 
     suspend fun confirmPayoutTransactional(
         tableId: Int
-    ): ConfirmBetsResult = dbQuery {
+    ): CommandWriteResult = dbQuery {
         val now = System.currentTimeMillis()
 
         val systemRow = SystemStateTable.selectAll().single()
@@ -296,12 +296,12 @@ class HostWriteRepository {
         SystemStateTable.update({ SystemStateTable.id eq 1L }) {
             it[SystemStateTable.systemMode] = SystemMode.ACCEPTING_BETS.name
             it[SystemStateTable.pendingWinId] = null
-            it[SystemStateTable.stateVersion] = nextStateVersion
-            it[SystemStateTable.lastEventId] = eventId
-            it[SystemStateTable.updatedAt] = now
+            it[stateVersion] = nextStateVersion
+            it[lastEventId] = eventId
+            it[updatedAt] = now
         }
 
-        ConfirmBetsResult(
+        CommandWriteResult(
             stateVersion = nextStateVersion,
             lastEventId = eventId
         )
@@ -310,7 +310,7 @@ class HostWriteRepository {
     suspend fun selectPayoutBoxTransactional(
         tableId: Int,
         boxId: Int
-    ): ConfirmBetsResult = dbQuery {
+    ): CommandWriteResult = dbQuery {
         val now = System.currentTimeMillis()
 
         val systemRow = SystemStateTable.selectAll().single()
@@ -332,7 +332,7 @@ class HostWriteRepository {
 
         val winningBoxId = pendingWinRow[PendingWinTable.winningBoxId]
         if (winningBoxId != boxId) {
-            return@dbQuery ConfirmBetsResult(
+            return@dbQuery CommandWriteResult(
                 stateVersion = systemRow[SystemStateTable.stateVersion],
                 lastEventId = systemRow[SystemStateTable.lastEventId]
             )
@@ -340,7 +340,7 @@ class HostWriteRepository {
 
         val alreadyConfirmed = pendingWinRow[PendingWinTable.dealerConfirmed]
         if (alreadyConfirmed) {
-            return@dbQuery ConfirmBetsResult(
+            return@dbQuery CommandWriteResult(
                 stateVersion = systemRow[SystemStateTable.stateVersion],
                 lastEventId = systemRow[SystemStateTable.lastEventId]
             )
@@ -366,7 +366,63 @@ class HostWriteRepository {
             it[updatedAt] = now
         }
 
-        ConfirmBetsResult(
+        CommandWriteResult(
+            stateVersion = nextStateVersion,
+            lastEventId = eventId
+        )
+    }
+
+    suspend fun toggleBoxTransactional(
+        tableId: Int,
+        boxId: Int
+    ): CommandWriteResult = dbQuery {
+        val now = System.currentTimeMillis()
+
+        val systemRow = SystemStateTable.selectAll().single()
+        val systemMode = SystemMode.valueOf(systemRow[SystemStateTable.systemMode])
+        require(systemMode == SystemMode.ACCEPTING_BETS) { "System is not accepting bets" }
+
+        TableStateTable.update({ TableStateTable.tableId eq tableId }) {
+            it[lastSeenAt] = now
+            it[updatedAt] = now
+        }
+
+        val exists = TableActiveBoxTable.selectAll()
+            .where {
+                (TableActiveBoxTable.tableId eq tableId) and
+                        (TableActiveBoxTable.boxId eq boxId)
+            }
+            .any()
+
+        if (exists) {
+            TableActiveBoxTable.deleteWhere {
+                (TableActiveBoxTable.tableId eq tableId) and
+                        (TableActiveBoxTable.boxId eq boxId)
+            }
+        } else {
+            TableActiveBoxTable.insert {
+                it[TableActiveBoxTable.tableId] = tableId
+                it[TableActiveBoxTable.boxId] = boxId
+                it[selectedAt] = now
+            }
+        }
+
+        val nextStateVersion = systemRow[SystemStateTable.stateVersion] + 1
+
+        val eventId = SyncEventTable.insert {
+            it[createdAt] = now
+            it[type] = SyncEventType.BoxToggled.name
+            it[payloadJson] = """{"tableId":$tableId,"boxId":$boxId}"""
+            it[stateVersion] = nextStateVersion
+        } get SyncEventTable.eventId
+
+        SystemStateTable.update({ SystemStateTable.id eq 1L }) {
+            it[stateVersion] = nextStateVersion
+            it[lastEventId] = eventId
+            it[updatedAt] = now
+        }
+
+        CommandWriteResult(
             stateVersion = nextStateVersion,
             lastEventId = eventId
         )

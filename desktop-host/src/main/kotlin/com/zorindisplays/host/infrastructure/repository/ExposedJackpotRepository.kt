@@ -6,7 +6,6 @@ import com.zorindisplays.host.domain.model.JackpotState
 import com.zorindisplays.host.infrastructure.db.dbQuery
 import com.zorindisplays.host.infrastructure.db.tables.JackpotConfigTable
 import com.zorindisplays.host.infrastructure.db.tables.JackpotStateTable
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.update
 
@@ -36,16 +35,6 @@ class ExposedJackpotRepository {
                     gamesSinceLastHit = row[JackpotStateTable.gamesSinceLastHit]
                 )
             }
-    }
-
-    suspend fun saveStates(states: List<JackpotState>) = dbQuery {
-        states.forEach { state ->
-            JackpotStateTable.update({ JackpotStateTable.jackpotId eq state.jackpotId.name }) {
-                it[currentAmount] = state.currentAmount
-                it[gamesSinceLastHit] = state.gamesSinceLastHit
-                it[updatedAt] = System.currentTimeMillis()
-            }
-        }
     }
 
     suspend fun getConfig(jackpotId: JackpotId): JackpotConfig? = dbQuery {

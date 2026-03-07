@@ -14,13 +14,10 @@ import com.zorindisplays.host.infrastructure.db.tables.TableActiveBoxTable
 import com.zorindisplays.host.infrastructure.db.tables.TableRecentBoxTable
 import com.zorindisplays.host.infrastructure.db.tables.TableStateTable
 import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.update
 import java.time.Instant
 
 class ExposedStateRepository {
-
     suspend fun getCurrentState(): HostState? = dbQuery {
         val systemRow = SystemStateTable.selectAll().singleOrNull() ?: return@dbQuery null
         val now = Instant.now().toEpochMilli()
@@ -98,33 +95,5 @@ class ExposedStateRepository {
             jackpots = jackpots,
             tables = tables
         )
-    }
-
-    suspend fun initializeIfEmpty() = dbQuery {
-        if (SystemStateTable.selectAll().empty()) {
-            SystemStateTable.insert {
-                it[id] = 1
-                it[systemMode] = SystemMode.ACCEPTING_BETS.name
-                it[stateVersion] = 1L
-                it[lastEventId] = 0L
-                it[pendingWinId] = null
-                it[updatedAt] = Instant.now().toEpochMilli()
-            }
-        }
-    }
-
-    suspend fun updateSystemMode(mode: SystemMode) = dbQuery {
-        SystemStateTable.update({ SystemStateTable.id eq 1 }) {
-            it[systemMode] = mode.name
-            it[updatedAt] = Instant.now().toEpochMilli()
-        }
-    }
-
-    suspend fun updateStateVersionAndLastEvent(stateVersion: Long, lastEventId: Long) = dbQuery {
-        SystemStateTable.update({ SystemStateTable.id eq 1 }) {
-            it[SystemStateTable.stateVersion] = stateVersion
-            it[SystemStateTable.lastEventId] = lastEventId
-            it[updatedAt] = Instant.now().toEpochMilli()
-        }
     }
 }

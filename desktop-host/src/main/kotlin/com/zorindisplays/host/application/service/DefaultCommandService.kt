@@ -5,26 +5,14 @@ import com.zorindisplays.host.application.command.ConfirmBetsCommand
 import com.zorindisplays.host.application.command.ConfirmPayoutCommand
 import com.zorindisplays.host.application.command.SelectPayoutBoxCommand
 import com.zorindisplays.host.application.command.ToggleBoxCommand
-import com.zorindisplays.host.domain.event.SyncEventType
-import com.zorindisplays.host.domain.model.JackpotId
-import com.zorindisplays.host.domain.model.JackpotState
-import com.zorindisplays.host.domain.model.PendingWin
 import com.zorindisplays.host.domain.model.SystemMode
 import com.zorindisplays.host.domain.result.CommandResult
-import com.zorindisplays.host.infrastructure.repository.ExposedJackpotRepository
-import com.zorindisplays.host.infrastructure.repository.ExposedPendingWinRepository
 import com.zorindisplays.host.infrastructure.repository.ExposedStateRepository
-import com.zorindisplays.host.infrastructure.repository.ExposedSyncEventRepository
-import com.zorindisplays.host.infrastructure.repository.ExposedTableSelectionRepository
 import com.zorindisplays.host.infrastructure.repository.HostWriteRepository
 
 class DefaultCommandService(
     private val config: AppConfig,
     private val stateRepository: ExposedStateRepository,
-    private val tableSelectionRepository: ExposedTableSelectionRepository,
-    private val syncEventRepository: ExposedSyncEventRepository,
-    private val jackpotRepository: ExposedJackpotRepository,
-    private val pendingWinRepository: ExposedPendingWinRepository,
     private val hostWriteRepository: HostWriteRepository,
     private val randomProvider: RandomProvider = DefaultRandomProvider
 ) : CommandService {
@@ -45,17 +33,11 @@ class DefaultCommandService(
             return CommandResult.Rejected("System is not accepting bets")
         }
 
-        tableSelectionRepository.touchTable(command.tableId, System.currentTimeMillis())
-        tableSelectionRepository.toggleBox(command.tableId, command.boxId)
-
-        val nextStateVersion = state.stateVersion + 1
-        val eventId = syncEventRepository.append(
-            type = SyncEventType.BoxToggled,
-            payloadJson = """{"tableId":${command.tableId},"boxId":${command.boxId}}""",
-            stateVersion = nextStateVersion
+        hostWriteRepository.toggleBoxTransactional(
+            tableId = command.tableId,
+            boxId = command.boxId
         )
 
-        stateRepository.updateStateVersionAndLastEvent(nextStateVersion, eventId)
         return CommandResult.Accepted
     }
 
@@ -96,12 +78,19 @@ class DefaultCommandService(
             return CommandResult.Rejected("Invalid boxId=${command.boxId}")
         }
 
-        hostWriteRepository.selectPayoutBoxTransactional(
-            tableId = command.tableId,
-            boxId = command.boxId
-        )
-
-        return CommandResult.Accepted
+        return try {
+            hostWriteRepository.selectPayoutBoxTransactional(
+                tableId = command.tableId,
+                boxId = command.boxId
+            )
+            CommandResult.Accepted
+        } catch (e: IllegalArgumentException) {
+            CommandResult.Rejected(e.message ?: "Invalid payout box selection")
+        } catch (e: IllegalStateException) {
+            CommandResult.Rejected(e.message ?: "Invalid payout state")
+        } catch (e: Throwable) {
+            CommandResult.Failed(e.message ?: "Failed to select payout box")
+        }
     }
 
     override suspend fun confirmPayout(command: ConfirmPayoutCommand): CommandResult {

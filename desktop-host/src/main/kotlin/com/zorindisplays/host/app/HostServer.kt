@@ -18,8 +18,6 @@ import com.zorindisplays.host.infrastructure.db.tables.TableActiveBoxTable
 import com.zorindisplays.host.infrastructure.db.tables.TableRecentBoxTable
 import com.zorindisplays.host.infrastructure.db.tables.TableStateTable
 import com.zorindisplays.host.infrastructure.projection.SnapshotProjection
-import com.zorindisplays.host.infrastructure.repository.ExposedJackpotRepository
-import com.zorindisplays.host.infrastructure.repository.ExposedPendingWinRepository
 import com.zorindisplays.host.infrastructure.repository.ExposedStateRepository
 import com.zorindisplays.host.infrastructure.repository.ExposedSyncEventRepository
 import com.zorindisplays.host.infrastructure.repository.ExposedTableSelectionRepository
@@ -47,10 +45,8 @@ fun main() {
     DatabaseBootstrap.bootstrap(config)
 
     val stateRepository = ExposedStateRepository()
-    val tableSelectionRepository = ExposedTableSelectionRepository()
     val syncEventRepository = ExposedSyncEventRepository()
-    val jackpotRepository = ExposedJackpotRepository()
-    val pendingWinRepository = ExposedPendingWinRepository()
+    val tableSelectionRepository = ExposedTableSelectionRepository()
     val hostWriteRepository = HostWriteRepository()
 
     val snapshotProjection = SnapshotProjection()
@@ -65,10 +61,6 @@ fun main() {
     val commandService: CommandService = DefaultCommandService(
         config = config,
         stateRepository = stateRepository,
-        tableSelectionRepository = tableSelectionRepository,
-        syncEventRepository = syncEventRepository,
-        jackpotRepository = jackpotRepository,
-        pendingWinRepository = pendingWinRepository,
         hostWriteRepository = hostWriteRepository
     )
 
