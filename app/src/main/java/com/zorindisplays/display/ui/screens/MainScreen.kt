@@ -317,6 +317,38 @@ fun MainScreen(
         if (!takeover) {
             LuxuryBackground(modifier = Modifier.fillMaxSize())
 
+            // spotlight (можно усилить на focus)
+            val spotAlpha = when (val w = win) {
+                is WinPhase.Rain -> 0.22f
+                is WinPhase.Focus -> when (w.level) {
+                    1 -> 0.30f
+                    2 -> 0.26f
+                    else -> 0.24f
+                }
+                else -> 0.18f
+            }
+            JackpotSpotlight(
+                modifier = Modifier
+                    .fillMaxSize()
+                    //.offset(y = h * 0.10f)
+                    .blur(24.dp),
+                baseColor = Color(0xFFFF2A2A),
+                alpha = spotAlpha,
+                winnerLevel = when (val w = win) {
+                    is WinPhase.Rain -> w.level
+                    is WinPhase.Focus -> w.level
+                    is WinPhase.Takeover -> w.level
+                    else -> null
+                },
+                winPhase = when (win) {
+                    is WinPhase.Rain -> "Rain"
+                    is WinPhase.Focus -> "Focus"
+                    is WinPhase.Takeover -> "Takeover"
+                    else -> "None"
+                }
+            )
+
+
             // Логотип Mystery Jackpot по центру сверху
             var clickCount by remember { mutableStateOf(0) }
             LaunchedEffect(clickCount) {
@@ -401,29 +433,6 @@ fun MainScreen(
                 periodMs = 9000
             )
 
-            // spotlight (можно усилить на focus)
-            val spotAlpha = if (focus && (win as WinPhase.Focus).level == 1) 0.30f else 0.18f
-            JackpotSpotlight(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(280.dp)
-                    .offset(y = h * 0.10f)
-                    .blur(24.dp),
-                baseColor = Color(0xFFFF2A2A),
-                alpha = spotAlpha,
-                winnerLevel = when (val w = win) {
-                    is WinPhase.Rain -> w.level
-                    is WinPhase.Focus -> w.level
-                    is WinPhase.Takeover -> w.level
-                    else -> null
-                },
-                winPhase = when (win) {
-                    is WinPhase.Rain -> "Rain"
-                    is WinPhase.Focus -> "Focus"
-                    is WinPhase.Takeover -> "Takeover"
-                    else -> "None"
-                }
-            )
 
 
             TopBrandBar(
