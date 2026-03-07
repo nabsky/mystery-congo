@@ -13,15 +13,47 @@ fun Route.registerAdminRoutes(adminHistoryRepository: AdminHistoryRepository) {
 
     get("/admin/bet-batches") {
         val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 500) ?: 50
-        call.respond(adminHistoryRepository.getBetBatches(limit))
+        val tableId = call.request.queryParameters["tableId"]?.toIntOrNull()
+        val result = call.request.queryParameters["result"]
+        val beforeId = call.request.queryParameters["beforeId"]?.toLongOrNull()
+
+        call.respond(
+            adminHistoryRepository.getBetBatches(
+                limit = limit,
+                tableId = tableId,
+                result = result,
+                beforeId = beforeId
+            )
+        )
     }
 
     get("/admin/jackpot-hits") {
         val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 500) ?: 50
-        call.respond(adminHistoryRepository.getJackpotHits(limit))
+        val tableId = call.request.queryParameters["tableId"]?.toIntOrNull()
+        val jackpotId = call.request.queryParameters["jackpotId"]
+        val status = call.request.queryParameters["status"]
+        val beforeId = call.request.queryParameters["beforeId"]?.toLongOrNull()
+
+        call.respond(
+            adminHistoryRepository.getJackpotHits(
+                limit = limit,
+                tableId = tableId,
+                jackpotId = jackpotId,
+                status = status,
+                beforeId = beforeId
+            )
+        )
     }
 
     get("/admin/pending-wins") {
-        call.respond(adminHistoryRepository.getPendingWins())
+        val tableId = call.request.queryParameters["tableId"]?.toIntOrNull()
+        val dealerConfirmed = call.request.queryParameters["dealerConfirmed"]?.toBooleanStrictOrNull()
+
+        call.respond(
+            adminHistoryRepository.getPendingWins(
+                tableId = tableId,
+                dealerConfirmed = dealerConfirmed
+            )
+        )
     }
 }

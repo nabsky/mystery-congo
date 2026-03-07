@@ -5,14 +5,40 @@ import com.zorindisplays.host.infrastructure.db.tables.BetBatchItemTable
 import com.zorindisplays.host.infrastructure.db.tables.BetBatchTable
 import com.zorindisplays.host.infrastructure.db.tables.JackpotHitTable
 import com.zorindisplays.host.infrastructure.db.tables.PendingWinTable
+import org.jetbrains.exposed.sql.Op
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.selectAll
 
 class AdminHistoryRepository {
 
-    suspend fun getBetBatches(limit: Int = 50): List<AdminBetBatchDto> = dbQuery {
-        val batchRows = BetBatchTable.selectAll()
+    suspend fun getBetBatches(
+        limit: Int = 50,
+        tableId: Int? = null,
+        result: String? = null,
+        beforeId: Long? = null
+    ): List<AdminBetBatchDto> = dbQuery {
+        var condition: Op<Boolean>? = null
+
+        if (tableId != null) {
+            condition = (condition?.and(BetBatchTable.tableId eq tableId)) ?: (BetBatchTable.tableId eq tableId)
+        }
+        if (result != null) {
+            condition = (condition?.and(BetBatchTable.result eq result)) ?: (BetBatchTable.result eq result)
+        }
+        if (beforeId != null) {
+            condition = (condition?.and(BetBatchTable.id less beforeId)) ?: (BetBatchTable.id less beforeId)
+        }
+
+        val query = if (condition == null) {
+            BetBatchTable.selectAll()
+        } else {
+            BetBatchTable.selectAll().where { condition }
+        }
+
+        val batchRows = query
             .orderBy(BetBatchTable.id to SortOrder.DESC)
             .limit(limit)
             .toList()
@@ -54,8 +80,35 @@ class AdminHistoryRepository {
         }
     }
 
-    suspend fun getJackpotHits(limit: Int = 50): List<AdminJackpotHitDto> = dbQuery {
-        JackpotHitTable.selectAll()
+    suspend fun getJackpotHits(
+        limit: Int = 50,
+        tableId: Int? = null,
+        jackpotId: String? = null,
+        status: String? = null,
+        beforeId: Long? = null
+    ): List<AdminJackpotHitDto> = dbQuery {
+        var condition: Op<Boolean>? = null
+
+        if (tableId != null) {
+            condition = (condition?.and(JackpotHitTable.tableId eq tableId)) ?: (JackpotHitTable.tableId eq tableId)
+        }
+        if (jackpotId != null) {
+            condition = (condition?.and(JackpotHitTable.jackpotId eq jackpotId)) ?: (JackpotHitTable.jackpotId eq jackpotId)
+        }
+        if (status != null) {
+            condition = (condition?.and(JackpotHitTable.status eq status)) ?: (JackpotHitTable.status eq status)
+        }
+        if (beforeId != null) {
+            condition = (condition?.and(JackpotHitTable.id less beforeId)) ?: (JackpotHitTable.id less beforeId)
+        }
+
+        val query = if (condition == null) {
+            JackpotHitTable.selectAll()
+        } else {
+            JackpotHitTable.selectAll().where { condition }
+        }
+
+        query
             .orderBy(JackpotHitTable.id to SortOrder.DESC)
             .limit(limit)
             .map { row ->
@@ -74,8 +127,27 @@ class AdminHistoryRepository {
             }
     }
 
-    suspend fun getPendingWins(): List<AdminPendingWinDto> = dbQuery {
-        PendingWinTable.selectAll()
+    suspend fun getPendingWins(
+        tableId: Int? = null,
+        dealerConfirmed: Boolean? = null
+    ): List<AdminPendingWinDto> = dbQuery {
+        var condition: Op<Boolean>? = null
+
+        if (tableId != null) {
+            condition = (condition?.and(PendingWinTable.tableId eq tableId)) ?: (PendingWinTable.tableId eq tableId)
+        }
+        if (dealerConfirmed != null) {
+            condition = (condition?.and(PendingWinTable.dealerConfirmed eq dealerConfirmed))
+                ?: (PendingWinTable.dealerConfirmed eq dealerConfirmed)
+        }
+
+        val query = if (condition == null) {
+            PendingWinTable.selectAll()
+        } else {
+            PendingWinTable.selectAll().where { condition }
+        }
+
+        query
             .orderBy(PendingWinTable.id to SortOrder.DESC)
             .map { row ->
                 AdminPendingWinDto(
