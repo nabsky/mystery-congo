@@ -1,7 +1,9 @@
 package com.zorindisplays.host.app
 
 import com.zorindisplays.host.admin.AdminHistoryRepository
+import com.zorindisplays.host.admin.AdminSettingsRepository
 import com.zorindisplays.host.admin.registerAdminRoutes
+import com.zorindisplays.host.admin.registerAdminSettingsRoutes
 import com.zorindisplays.host.api.registerAdminWsRoutes
 import com.zorindisplays.host.api.registerHealthRoutes
 import com.zorindisplays.host.api.registerInputRoutes
@@ -36,7 +38,8 @@ fun Application.appModule(
     config: AppConfig,
     queryService: QueryService,
     commandService: CommandService,
-    adminHistoryRepository: AdminHistoryRepository
+    adminHistoryRepository: AdminHistoryRepository,
+    adminSettingsRepository: AdminSettingsRepository
 ) {
     install(CallLogging)
     install(ContentNegotiation) { json() }
@@ -69,6 +72,7 @@ fun Application.appModule(
 
         authenticate("admin-auth") {
             registerAdminRoutes(adminHistoryRepository)
+            registerAdminSettingsRoutes(adminSettingsRepository)
             registerAdminWsRoutes()
 
             get("/mystery") {

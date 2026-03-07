@@ -90,6 +90,11 @@
                 Live Events
             </button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings-pane" type="button">
+                Settings
+            </button>
+        </li>
     </ul>
 
     <div class="tab-content">
@@ -290,6 +295,90 @@
                 </div>
             </div>
         </div>
+
+        <div class="tab-pane fade" id="settings-pane">
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Jackpot Settings</span>
+                    <button id="refreshSettingsBtn" class="btn btn-sm btn-outline-primary">Refresh</button>
+                </div>
+                <div class="card-body">
+                    <table
+                            id="jackpotSettingsTable"
+                            class="table table-striped"
+                            data-toggle="table"
+                            data-search="false"
+                            data-pagination="false">
+                        <thead>
+                        <tr>
+                            <th data-field="jackpotId">Jackpot</th>
+                            <th data-field="resetAmount">Reset Amount</th>
+                            <th data-field="contributionPerBet">Contribution / Bet</th>
+                            <th data-field="hitFrequencyGames">Hit Frequency</th>
+                            <th data-field="priorityOrder">Priority</th>
+                            <th data-field="enabled" data-formatter="enabledFormatter">Enabled</th>
+                            <th data-field="actions" data-formatter="settingsActionsFormatter" data-events="settingsActionEvents">Actions</th>
+                        </tr>
+                        </thead>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editJackpotSettingsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form id="editJackpotSettingsForm" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Jackpot Settings</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <input type="hidden" id="settingsJackpotId">
+
+                <div class="mb-3">
+                    <label class="form-label">Jackpot ID</label>
+                    <input type="text" class="form-control" id="settingsJackpotIdReadonly" readonly>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Reset Amount</label>
+                    <input type="number" min="0" step="1" class="form-control" id="settingsResetAmount" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Contribution Per Bet</label>
+                    <input type="number" min="0" step="1" class="form-control" id="settingsContributionPerBet" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Hit Frequency Games</label>
+                    <input type="number" min="1" step="1" class="form-control" id="settingsHitFrequencyGames" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Priority Order</label>
+                    <input type="number" min="1" step="1" class="form-control" id="settingsPriorityOrder" required>
+                </div>
+
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="settingsEnabled">
+                    <label class="form-check-label" for="settingsEnabled">
+                        Enabled
+                    </label>
+                </div>
+
+                <div id="settingsSaveError" class="text-danger small mt-3 d-none"></div>
+                <div id="settingsSaveSuccess" class="text-success small mt-3 d-none">Saved successfully.</div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="saveJackpotSettingsBtn">Save</button>
+            </div>
+        </form>
     </div>
 </div>
 

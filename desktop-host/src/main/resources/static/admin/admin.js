@@ -1,6 +1,8 @@
 const state = {
     autoRefresh: true,
     autoRefreshHandle: null,
+    jackpotSettings: [],
+    editJackpotModal: null
 };
 
 function tsFormatter(value) {
@@ -59,6 +61,29 @@ function betBatchDetailFormatter(index, row) {
 
 window.tsFormatter = tsFormatter;
 window.betBatchDetailFormatter = betBatchDetailFormatter;
+
+function enabledFormatter(value) {
+    return value
+        ? '<span class="badge text-bg-success">ENABLED</span>'
+        : '<span class="badge text-bg-secondary">DISABLED</span>';
+}
+
+function settingsActionsFormatter() {
+    return `
+        <button class="btn btn-sm btn-outline-primary settings-action-btn edit-settings-btn" type="button">
+            Edit
+        </button>
+    `;
+}
+
+window.enabledFormatter = enabledFormatter;
+window.settingsActionsFormatter = settingsActionsFormatter;
+
+window.settingsActionEvents = {
+    'click .edit-settings-btn': function (e, value, row) {
+        openEditJackpotSettingsModal(row);
+    }
+};
 
 async function fetchJson(url) {
     const response = await fetch(url, {
@@ -168,18 +193,122 @@ async function refreshPendingWins() {
         : document.getElementById("pendingWinsTable").setAttribute("data", JSON.stringify(data));
 }
 
+async function refreshJackpotSettings() {
+    const data = await fetchJson("/admin/settings/jackpots");
+    state.jackpotSettings = data;
+
+    if (window.jQuery) {
+        window.jQuery("#jackpotSettingsTable").bootstrapTable("load", data);
+    }
+}
+
 async function refreshAll() {
     try {
         await Promise.all([
             refreshCurrentState(),
             refreshBetBatches(),
             refreshJackpotHits(),
-            refreshPendingWins()
+            refreshPendingWins(),
+            refreshJackpotSettings
         ]);
     } catch (e) {
         console.error(e);
         setServerStatus(false, `ERROR · ${e.message}`);
     }
+}
+
+async function saveJackpotSettings(event) {
+    event.preventDefault();
+    resetSettingsMessages();
+
+    const jackpotId = document.getElementById("settingsJackpotId").value;
+    const resetAmount = Number(document.getElementById("settingsResetAmount").value);
+    const contributionPerBet = Number(document.getElementById("settingsContributionPerBet").value);
+    const hitFrequencyGames = Number(document.getElementById("settingsHitFrequencyGames").value);
+    const priorityOrder = Number(document.getElementById("settingsPriorityOrder").value);
+    const enabled = document.getElementById("settingsEnabled").checked;
+
+    const payload = {
+        resetAmount,
+        contributionPerBet,
+        hitFrequencyGames,
+        priorityOrder,
+        enabled
+    };
+
+    const saveBtn = document.getElementById("saveJackpotSettingsBtn");
+    saveBtn.disabled = true;
+
+    try {
+        const response = await fetch(`/admin/settings/jackpots/${encodeURIComponent(jackpotId)}`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(text || `HTTP ${response.status}`);
+        }
+
+        document.getElementById("settingsSaveSuccess").classList.remove("d-none");
+
+        await refreshJackpotSettings();
+        await refreshCurrentState();
+
+        setTimeout(() => {
+            state.editJackpotModal.hide();
+        }, 500);
+    } catch (e) {
+        const errorEl = document.getElementById("settingsSaveError");
+        errorEl.textContent = e.message || "Failed to save settings";
+        errorEl.classList.remove("d-none");
+    } finally {
+        saveBtn.disabled = false;
+    }
+}
+
+function resetSettingsMessages() {
+    document.getElementById("settingsSaveError").classList.add("d-none");
+    document.getElementById("settingsSaveSuccess").classList.add("d-none");
+    document.getElementById("settingsSaveError").textContent = "";
+}
+
+function openEditJackpotSettingsModal(row) {
+    resetSettingsMessages();
+
+    document.getElementById("settingsJackpotId").value = row.jackpotId;
+    document.getElementById("settingsJackpotIdReadonly").value = row.jackpotId;
+    document.getElementById("settingsResetAmount").value = row.resetAmount;
+    document.getElementById("settingsContributionPerBet").value = row.contributionPerBet;
+    document.getElementById("settingsHitFrequencyGames").value = row.hitFrequencyGames;
+    document.getElementById("settingsPriorityOrder").value = row.priorityOrder;
+    document.getElementById("settingsEnabled").checked = !!row.enabled;
+
+    state.editJackpotModal.show();
+}
+
+function resetSettingsMessages() {
+    document.getElementById("settingsSaveError").classList.add("d-none");
+    document.getElementById("settingsSaveSuccess").classList.add("d-none");
+    document.getElementById("settingsSaveError").textContent = "";
+}
+
+function openEditJackpotSettingsModal(row) {
+    resetSettingsMessages();
+
+    document.getElementById("settingsJackpotId").value = row.jackpotId;
+    document.getElementById("settingsJackpotIdReadonly").value = row.jackpotId;
+    document.getElementById("settingsResetAmount").value = row.resetAmount;
+    document.getElementById("settingsContributionPerBet").value = row.contributionPerBet;
+    document.getElementById("settingsHitFrequencyGames").value = row.hitFrequencyGames;
+    document.getElementById("settingsPriorityOrder").value = row.priorityOrder;
+    document.getElementById("settingsEnabled").checked = !!row.enabled;
+
+    state.editJackpotModal.show();
 }
 
 function initTables() {
@@ -191,6 +320,7 @@ function initTables() {
     window.jQuery("#betBatchesTable").bootstrapTable({ data: [] });
     window.jQuery("#jackpotHitsTable").bootstrapTable({ data: [] });
     window.jQuery("#pendingWinsTable").bootstrapTable({ data: [] });
+    window.jQuery("#jackpotSettingsTable").bootstrapTable({ data: [] });
 }
 
 function setupFilters() {
@@ -208,6 +338,19 @@ function setupFilters() {
         e.preventDefault();
         await refreshPendingWins();
     });
+}
+
+function setupSettingsUi() {
+    const modalElement = document.getElementById("editJackpotSettingsModal");
+    state.editJackpotModal = new bootstrap.Modal(modalElement);
+
+    document.getElementById("editJackpotSettingsForm")
+        .addEventListener("submit", saveJackpotSettings);
+
+    document.getElementById("refreshSettingsBtn")
+        .addEventListener("click", async () => {
+            await refreshJackpotSettings();
+        });
 }
 
 function setupToolbar() {
@@ -297,7 +440,8 @@ function connectWs() {
                     refreshCurrentState(),
                     refreshBetBatches(),
                     refreshJackpotHits(),
-                    refreshPendingWins()
+                    refreshPendingWins(),
+                    refreshJackpotSettings
                 ]);
             }
         } catch (e) {
@@ -320,7 +464,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     initTables();
     setupFilters();
     setupToolbar();
+    setupSettingsUi();
+    connectWs();
     await refreshAll();
     startAutoRefresh();
-    connectWs();
 });

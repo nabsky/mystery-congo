@@ -38,3 +38,7 @@ body {
 .status-bad {
     color: #dc3545;
 }
+
+.settings-action-btn {
+    min-width: 72px;
+}
