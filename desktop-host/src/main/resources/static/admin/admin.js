@@ -315,6 +315,7 @@ async function refreshDashboard() {
 
     document.getElementById("dashboardSystemMode").textContent = dashboard.systemMode ?? "-";
     const statusBadge = document.getElementById("systemStatusBadge");
+
     if (statusBadge) {
         const mode = dashboard.systemMode ?? "UNKNOWN";
         statusBadge.textContent = mode;
@@ -322,7 +323,8 @@ async function refreshDashboard() {
             "bg-success",
             "bg-warning",
             "bg-danger",
-            "bg-secondary"
+            "bg-secondary",
+            "badge-blink"
         );
         if (mode === "ACCEPTING_BETS") {
             statusBadge.classList.add("bg-success");
@@ -332,6 +334,9 @@ async function refreshDashboard() {
             statusBadge.classList.add("bg-danger");
         } else {
             statusBadge.classList.add("bg-secondary");
+        }
+        if (dashboard.pendingWin) {
+            statusBadge.classList.add("badge-blink");
         }
     }
     document.getElementById("dashboardBatchesToday").textContent = dashboard.totalBatchesToday ?? 0;
@@ -402,6 +407,34 @@ async function refreshDevices() {
 
     if (window.jQuery && document.getElementById("devicesTable")) {
         window.jQuery("#devicesTable").bootstrapTable("load", summary.devices || []);
+    }
+
+    const healthBadge = document.getElementById("devicesHealthBadge");
+
+    if (healthBadge) {
+
+        const tablesOnline = summary.tablesOnline ?? 0;
+        const displaysOnline = summary.displaysOnline ?? 0;
+
+        healthBadge.textContent =
+            `Displays: ${displaysOnline}  Tables: ${tablesOnline}`;
+
+        healthBadge.classList.remove(
+            "bg-success",
+            "bg-warning",
+            "bg-danger",
+            "bg-secondary"
+        );
+
+        if (displaysOnline === 0 || tablesOnline === 0) {
+            healthBadge.classList.add("bg-danger");
+        }
+        else if (tablesOnline < 8) {
+            healthBadge.classList.add("bg-warning");
+        }
+        else {
+            healthBadge.classList.add("bg-success");
+        }
     }
 }
 

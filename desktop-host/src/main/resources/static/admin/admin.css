@@ -79,3 +79,13 @@ body {
 .admin-logo:hover {
     opacity: 0.8;
 }
+
+.badge-blink {
+    animation: badgeBlink 1s infinite;
+}
+
+@keyframes badgeBlink {
+    0% { opacity: 1; }
+    50% { opacity: 0.45; }
+    100% { opacity: 1; }
+}
