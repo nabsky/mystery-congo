@@ -3,6 +3,7 @@ package com.zorindisplays.host.app
 import com.zorindisplays.host.admin.AdminDashboardRepository
 import com.zorindisplays.host.admin.AdminHistoryRepository
 import com.zorindisplays.host.admin.AdminSettingsRepository
+import com.zorindisplays.host.admin.AdminSystemRepository
 import com.zorindisplays.host.application.service.CommandService
 import com.zorindisplays.host.application.service.DefaultCommandService
 import com.zorindisplays.host.application.service.DefaultQueryService
@@ -56,6 +57,7 @@ fun main() {
     val adminDashboardRepository = AdminDashboardRepository(
         tableCount = config.tableCount
     )
+    val adminSystemRepository = AdminSystemRepository()
 
     val snapshotProjection = SnapshotProjection()
 
@@ -79,7 +81,8 @@ fun main() {
             commandService = commandService,
             adminHistoryRepository = adminHistoryRepository,
             adminSettingsRepository = adminSettingsRepository,
-            adminDashboardRepository = adminDashboardRepository
+            adminDashboardRepository = adminDashboardRepository,
+            adminSystemRepository = adminSystemRepository
         )
     }.start(wait = true)
 }

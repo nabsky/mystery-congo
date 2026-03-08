@@ -2,7 +2,9 @@ const state = {
     autoRefresh: true,
     autoRefreshHandle: null,
     jackpotSettings: [],
-    editJackpotModal: null
+    editJackpotModal: null,
+    systemActionConfirmModal: null,
+    pendingSystemAction: null,
 };
 
 function tsFormatter(value) {
@@ -131,6 +133,110 @@ function fillTablesState(snapshot) {
         `;
         tbody.appendChild(tr);
     });
+}
+
+function showToast(message) {
+    const body = document.getElementById("adminToastBody");
+    body.textContent = message;
+
+    const toastEl = document.getElementById("adminToast");
+    const toast = bootstrap.Toast.getOrCreateInstance(toastEl);
+    toast.show();
+}
+
+function systemActionLabel(action) {
+    switch (action) {
+        case "refresh":
+            return "Refresh Snapshot";
+        case "clear-active-boxes":
+            return "Clear Active Boxes";
+        case "clear-recent-boxes":
+            return "Clear Recent Boxes";
+        case "reset-pending-win":
+            return "Reset Pending Win";
+        default:
+            return action;
+    }
+}
+
+function openSystemActionConfirm(action) {
+    state.pendingSystemAction = action;
+
+    const label = systemActionLabel(action);
+    document.getElementById("systemActionConfirmText").textContent =
+        `Are you sure you want to execute "${label}"?`;
+
+    state.systemActionConfirmModal.show();
+}
+
+async function executeSystemAction() {
+    const action = state.pendingSystemAction;
+    if (!action) return;
+
+    const urlMap = {
+        "refresh": "/admin/system/refresh",
+        "clear-active-boxes": "/admin/system/clear-active-boxes",
+        "clear-recent-boxes": "/admin/system/clear-recent-boxes",
+        "reset-pending-win": "/admin/system/reset-pending-win"
+    };
+
+    const url = urlMap[action];
+    if (!url) return;
+
+    const confirmBtn = document.getElementById("systemActionConfirmBtn");
+    confirmBtn.disabled = true;
+
+    try {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Accept": "application/json"
+            }
+        });
+
+        const text = await response.text();
+        let result;
+        try {
+            result = JSON.parse(text);
+        } catch {
+            result = { ok: response.ok, message: text };
+        }
+
+        if (!response.ok) {
+            throw new Error(result.message || `HTTP ${response.status}`);
+        }
+
+        document.getElementById("systemActionResultBox").textContent =
+            JSON.stringify(result, null, 2);
+
+        state.systemActionConfirmModal.hide();
+        showToast(result.message || "Action completed");
+
+        await refreshAll();
+    } catch (e) {
+        document.getElementById("systemActionResultBox").textContent =
+            JSON.stringify({ ok: false, message: e.message || "Action failed" }, null, 2);
+
+        showToast(e.message || "Action failed");
+    } finally {
+        confirmBtn.disabled = false;
+        state.pendingSystemAction = null;
+    }
+}
+
+function setupSystemActionsUi() {
+    const modalElement = document.getElementById("systemActionConfirmModal");
+    state.systemActionConfirmModal = new bootstrap.Modal(modalElement);
+
+    document.querySelectorAll("[data-system-action]").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const action = btn.getAttribute("data-system-action");
+            openSystemActionConfirm(action);
+        });
+    });
+
+    document.getElementById("systemActionConfirmBtn")
+        .addEventListener("click", executeSystemAction);
 }
 
 async function refreshCurrentState() {
@@ -525,6 +631,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     setupFilters();
     setupToolbar();
     setupSettingsUi();
+    setupSystemActionsUi();
     connectWs();
     await refreshAll();
     startAutoRefresh();
