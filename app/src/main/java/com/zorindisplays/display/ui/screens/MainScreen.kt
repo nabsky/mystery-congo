@@ -129,9 +129,11 @@ fun MainScreen(
         else -> 1
     }
 
-    // --- Универсальная нормализация tableId/boxId (0-based) ---
-    fun normTable0(raw: Int): Int = raw.coerceIn(0, 7)
-    fun normBox0(raw: Int): Int = raw.coerceIn(0, 8)
+    fun apiTableToUi0(apiTableId: Int): Int = (apiTableId - 1).coerceIn(0, 7)
+    fun apiBoxToUi0(apiBoxId: Int): Int = (apiBoxId - 1).coerceIn(0, 8)
+
+    fun uiTable0(raw: Int): Int = raw.coerceIn(0, 7)
+    fun uiBox0(raw: Int): Int = raw.coerceIn(0, 8)
 
     var winJackpotAmountMinor by remember { mutableStateOf<Long?>(null) }
     var winJackpotLevel by remember { mutableStateOf<Int?>(null) }
@@ -220,8 +222,8 @@ fun MainScreen(
                 when (e) {
                     is DemoEvent.JackpotHit -> {
                         val level = levelFromJackpotId(e.jackpotId)
-                        val table = normTable0(e.tableId)
-                        val box = normBox0(e.boxId)
+                        val table = apiTableToUi0(e.tableId)
+                        val box = apiBoxToUi0(e.boxId)
                         winJackpotLevel = level
                         winJackpotAmountMinor = e.winAmount
                         payoutSelectedBox = null
@@ -268,8 +270,8 @@ fun MainScreen(
 
                     is DemoEvent.DealerPayoutBoxSelected -> {
                         val cur = win
-                        val tId = normTable0(e.tableId)
-                        val bId = normBox0(e.boxId)
+                        val tId = apiTableToUi0(e.tableId)
+                        val bId = apiBoxToUi0(e.boxId)
                         if (cur is WinPhase.Takeover && cur.table == tId) {
                             payoutSelectedBox = tId to bId
                         }
@@ -277,7 +279,7 @@ fun MainScreen(
 
                     is DemoEvent.DealerPayoutConfirmed -> {
                         val cur = win
-                        val tId = normTable0(e.tableId)
+                        val tId = apiTableToUi0(e.tableId)
                         if (cur is WinPhase.Takeover && cur.table == tId) {
                             emu?.emulator?.resetJackpot(cur.level)
                             payoutSelectedBox = null
@@ -290,13 +292,8 @@ fun MainScreen(
                     }
 
                     is DemoEvent.BetsConfirmed -> {
-                        android.util.Log.d(
-                            "MainScreen",
-                            "BetsConfirmed raw tableId=${e.tableId} boxIds=${e.boxIds}"
-                        )
-
-                        val tId = normTable0(e.tableId)
-                        val boxes = e.boxIds.map { normBox0(it) }.toSet()
+                        val tId = apiTableToUi0(e.tableId)
+                        val boxes = e.boxIds.map { apiBoxToUi0(it) }.toSet()
 
                         confirmedBurst = mapOf(tId to boxes)
                         confirmToken = System.nanoTime()
@@ -677,13 +674,13 @@ fun MainScreen(
                 // нормальный режим: твой TableStage со всеми фичами
                 val tableStatesLike = object : TableStatesLike {
                     override fun isActive(table: Int): Boolean {
-                        val uiTable = normTable0(table)
-                        return activeTables.contains(uiTable)
+                        val t = uiTable0(table)
+                        return activeTables.contains(t)
                     }
                     override fun hasBetOnBox(table: Int, box: Int): Boolean {
-                        val uiTable = normTable0(table)
-                        val uiBox = normBox0(box)
-                        return litBets[uiTable]?.contains(uiBox) == true
+                        val t = uiTable0(table)
+                        val b = uiBox0(box)
+                        return litBets[t]?.contains(b) == true
                     }
                 }
 
@@ -710,14 +707,14 @@ fun MainScreen(
 
                     val winnerOnlyStates = object : TableStatesLike {
                         override fun isActive(table: Int): Boolean {
-                            val uiTable = normTable0(table)
-                            return activeTables.contains(uiTable)
+                            val t = uiTable0(table)
+                            return activeTables.contains(t)
                         }
                         override fun hasBetOnBox(table: Int, box: Int): Boolean {
                             if (!revealWinnerBox) return false
-                            val uiTable = normTable0(table)
-                            val uiBox = normBox0(box)
-                            return (uiTable == w.table && uiBox == w.box)
+                            val t = uiTable0(table)
+                            val b = uiBox0(box)
+                            return (t == w.table && b == w.box)
                         }
                     }
 
@@ -986,10 +983,10 @@ fun MainScreen(
                             object : TableStatesLike {
                                 override fun isActive(table: Int): Boolean = true
                                 override fun hasBetOnBox(table: Int, box: Int): Boolean {
-                                    val uiBox = normBox0(box)
+                                    val b = uiBox0(box)
                                     val sel = selected
-                                    if (sel != null && uiBox == sel.second) return false
-                                    return (uiBox == t.box)
+                                    if (sel != null && b == sel.second) return false
+                                    return (b == t.box)
                                 }
                             }
                         }
@@ -1013,10 +1010,10 @@ fun MainScreen(
                                 text = Color.White,
                             ),
                             betFillOverride = { _, box ->
-                                val uiBox = normBox0(box)
+                                val b = uiBox0(box)
                                 val sel = selected
-                                if (sel != null && uiBox == sel.second) null
-                                else if (uiBox == t.box) Color.White else null
+                                if (sel != null && b == sel.second) null
+                                else if (b == t.box) Color.White else null
                             },
                         )
                     }

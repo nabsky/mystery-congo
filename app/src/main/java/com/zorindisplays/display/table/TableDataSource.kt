@@ -67,9 +67,33 @@ class TableDataSource(
     private var pollingJob: Job? = null
     private var lastSuccessfulSyncTime = 0L
 
-    private fun healthUrl(): String = "$baseUrl/health?tableId=$tableId"
-    private fun snapshotUrl(): String = "$baseUrl/snapshot?tableId=$tableId"
-    private fun syncUrl(afterEventId: Long): String = "$baseUrl/sync?afterEventId=$afterEventId&tableId=$tableId"
+    private fun apiTableId(internalTableId: Int): Int = internalTableId + 1
+    private fun apiBoxId(internalBoxId: Int): Int = internalBoxId + 1
+    private val apiTableId: Int get() = tableId + 1
+
+    private fun healthUrl(): String = "$baseUrl/health?tableId=$apiTableId"
+    private fun snapshotUrl(): String = "$baseUrl/snapshot?tableId=$apiTableId"
+    private fun syncUrl(afterEventId: Long): String =
+        "$baseUrl/sync?afterEventId=$afterEventId&tableId=$apiTableId"
+
+    private fun internalTableId(apiTableId: Int): Int = apiTableId - 1
+    private fun internalBoxId(apiBoxId: Int): Int = apiBoxId - 1
+
+    private fun DemoState.toInternal(): DemoState {
+        return copy(
+            tables = tables.map { table ->
+                table.copy(
+                    tableId = internalTableId(table.tableId),
+                    activeBoxes = table.activeBoxes.map { internalBoxId(it) }.toSet(),
+                    recentBoxes = table.recentBoxes.map { internalBoxId(it) }.toSet()
+                )
+            },
+            pendingWin = pendingWin?.copy(
+                tableId = internalTableId(pendingWin.tableId),
+                boxId = internalBoxId(pendingWin.boxId)
+            )
+        )
+    }
 
     init {
         scope.launch {
@@ -85,7 +109,7 @@ class TableDataSource(
                 val snapshot: SnapshotResponse = client.get(snapshotUrl()).body()
                 Log.d("TableDataSource", "Snapshot received: ${snapshot.state}, lastEventId=${snapshot.lastEventId}, stateVersion=${snapshot.stateVersion}")
 
-                _state.value = snapshot.state
+                _state.value = snapshot.state.toInternal()
                 lastEventId.set(snapshot.lastEventId)
 
                 _connectionState.value = ConnectionState.CONNECTED
@@ -140,7 +164,7 @@ class TableDataSource(
                             when (event.type) {
                                 "BoxToggled" -> {
                                     val snapshot: SnapshotResponse = client.get(snapshotUrl()).body()
-                                    _state.value = snapshot.state
+                                    _state.value = snapshot.state.toInternal()
                                     lastEventId.set(maxOf(lastEventId.get(), snapshot.lastEventId))
                                     lastSuccessfulSyncTime = System.currentTimeMillis()
                                     _isHostOnline.value = true
@@ -161,8 +185,8 @@ class TableDataSource(
                                         )
                                     )
 
-                                    val snapshot: SnapshotResponse = client.get("$baseUrl/snapshot?tableId=$tableId").body()
-                                    _state.value = snapshot.state
+                                    val snapshot: SnapshotResponse = client.get(snapshotUrl()).body()
+                                    _state.value = snapshot.state.toInternal()
                                     lastEventId.set(maxOf(lastEventId.get(), snapshot.lastEventId))
                                     lastSuccessfulSyncTime = System.currentTimeMillis()
                                     _isHostOnline.value = true
@@ -185,7 +209,7 @@ class TableDataSource(
                                     )
 
                                     val snapshot: SnapshotResponse = client.get(snapshotUrl()).body()
-                                    _state.value = snapshot.state
+                                    _state.value = snapshot.state.toInternal()
                                     lastEventId.set(maxOf(lastEventId.get(), snapshot.lastEventId))
                                     lastSuccessfulSyncTime = System.currentTimeMillis()
                                     _isHostOnline.value = true
@@ -217,7 +241,7 @@ class TableDataSource(
                                     )
 
                                     val snapshot: SnapshotResponse = client.get("$baseUrl/snapshot?tableId=$tableId").body()
-                                    _state.value = snapshot.state
+                                    _state.value = snapshot.state.toInternal()
                                     lastEventId.set(maxOf(lastEventId.get(), snapshot.lastEventId))
                                     lastSuccessfulSyncTime = System.currentTimeMillis()
                                     _isHostOnline.value = true
@@ -259,7 +283,10 @@ class TableDataSource(
         }
 
         try {
-            val req = ToggleRequest(tableId = tableId, boxId = boxId)
+            val req = ToggleRequest(
+                tableId = apiTableId(tableId),
+                boxId = apiBoxId(boxId)
+            )
             Log.d("TableDataSource", "Sending toggle: $req")
             client.post("$baseUrl/input/toggle") {
                 contentType(ContentType.Application.Json)
@@ -277,7 +304,7 @@ class TableDataSource(
         }
 
         try {
-            val req = ConfirmRequest(tableId = tableId)
+            val req = ConfirmRequest(tableId = apiTableId(tableId))
             Log.d("TableDataSource", "Sending confirm: $req")
             client.post("$baseUrl/input/confirm") {
                 contentType(ContentType.Application.Json)
@@ -290,11 +317,17 @@ class TableDataSource(
 
     override suspend fun selectPayoutBox(tableId: Int, boxId: Int) {
         if (_connectionState.value == ConnectionState.OFFLINE) return
+        if (this.tableId != tableId) return
 
         runCatching {
             client.post("$baseUrl/input/payout/selectBox") {
                 contentType(ContentType.Application.Json)
-                setBody(SelectPayoutBoxRequest(tableId = tableId, boxId = boxId))
+                setBody(
+                    SelectPayoutBoxRequest(
+                        tableId = apiTableId(tableId),
+                        boxId = apiBoxId(boxId)
+                    )
+                )
             }
         }.onFailure {
             Log.e("TableDataSource", "Failed to select payout box", it)
@@ -303,11 +336,12 @@ class TableDataSource(
 
     override suspend fun confirmPayout(tableId: Int) {
         if (_connectionState.value == ConnectionState.OFFLINE) return
+        if (this.tableId != tableId) return
 
         runCatching {
             client.post("$baseUrl/input/payout/confirm") {
                 contentType(ContentType.Application.Json)
-                setBody(ConfirmPayoutRequest(tableId = tableId))
+                setBody(ConfirmPayoutRequest(tableId = apiTableId(tableId)))
             }
         }.onFailure {
             Log.e("TableDataSource", "Failed to confirm payout", it)
