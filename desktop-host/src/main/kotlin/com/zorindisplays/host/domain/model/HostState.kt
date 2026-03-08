@@ -6,5 +6,6 @@ data class HostState(
     val systemMode: SystemMode,
     val pendingWin: PendingWin?,
     val jackpots: Map<JackpotId, JackpotState>,
-    val tables: List<TableState>
+    val tables: List<TableState>,
+    val currencyCode: String,
 )

@@ -14,6 +14,18 @@ function tsFormatter(value) {
     return date.toLocaleString();
 }
 
+function formatMinorAmount(value, currencyCode = "") {
+    const minor = Number(value ?? 0);
+    const major = minor / 100;
+
+    const formatted = major.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+
+    return currencyCode ? `${formatted} ${currencyCode}` : formatted;
+}
+
 function yesNoBadge(value) {
     return value
         ? '<span class="badge text-bg-success">YES</span>'
@@ -384,6 +396,19 @@ async function refreshDashboard() {
             <td>${batch.winningBoxId ?? "-"}</td>
         </tr>
     `).join("");
+
+    const currency = dashboard.currencyCode ?? "";
+    document.getElementById("dashboardTotalInToday").textContent =
+        `${dashboard.totalInToday ?? 0} ${currency}`.trim();
+    document.getElementById("dashboardTotalOutToday").textContent =
+        `${dashboard.totalOutToday ?? 0} ${currency}`.trim();
+    document.getElementById("dashboardTotalInAllTime").textContent =
+        `${dashboard.totalInAllTime ?? 0} ${currency}`.trim();
+    document.getElementById("dashboardTotalOutAllTime").textContent =
+        `${dashboard.totalOutAllTime ?? 0} ${currency}`.trim();
+
+    document.getElementById("dashboardLatestBatchesCount").textContent =
+        (dashboard.latestBatches || []).length;
 }
 
 async function refreshDevices() {
@@ -393,7 +418,7 @@ async function refreshDevices() {
     if (devicesOnlineEl) {
         const tablesOnline = summary.tablesOnline ?? 0;
         const displaysOnline = summary.displaysOnline ?? 0;
-        devicesOnlineEl.textContent = `${tablesOnline} / ${displaysOnline}`;
+        devicesOnlineEl.textContent = `T ${tablesOnline} / D ${displaysOnline}`;
     }
 
     const warningBox = document.getElementById("dashboardDisplayWarning");

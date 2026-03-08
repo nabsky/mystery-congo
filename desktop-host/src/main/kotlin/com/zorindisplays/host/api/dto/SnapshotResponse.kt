@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class SnapshotResponse(
-    val state: DemoStateDto,
+    val state: JackpotStateDto,
     val stateVersion: Long,
     val lastEventId: Long
 )

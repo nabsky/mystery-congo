@@ -20,6 +20,15 @@ object DatabaseBootstrap {
                     it[updatedAt] = Instant.now().toEpochMilli()
                 }
             }
+
+            if (ServerSettingsTable.selectAll().empty()) {
+                ServerSettingsTable.insert {
+                    it[id] = 1L
+                    it[currencyCode] = "CFA"
+                    it[baseBetAmount] = 100000L
+                    it[updatedAt] = System.currentTimeMillis()
+                }
+            }
             // Table state
             for (tableId in 1..config.tableCount) {
                 if (TableStateTable.selectAll()

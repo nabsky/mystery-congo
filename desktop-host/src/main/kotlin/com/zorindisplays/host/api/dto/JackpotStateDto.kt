@@ -3,11 +3,12 @@ package com.zorindisplays.host.api.dto
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class DemoStateDto(
+data class JackpotStateDto(
     val tables: List<TableDto> = emptyList(),
     val jackpots: Map<String, Long> = emptyMap(),
     val systemMode: SystemModeDto = SystemModeDto.ACCEPTING_BETS,
     val pendingWin: PendingWinDto? = null,
+    val currencyCode: String,
 ) {
     @Serializable
     data class TableDto(
@@ -32,8 +33,8 @@ data class DemoStateDto(
     )
 
     companion object {
-        fun stub(): DemoStateDto {
-            return DemoStateDto(
+        fun stub(): JackpotStateDto {
+            return JackpotStateDto(
                 tables = List(8) { index ->
                     TableDto(
                         tableId = index + 1,
@@ -48,7 +49,8 @@ data class DemoStateDto(
                     "JADE" to 5_000L
                 ),
                 systemMode = SystemModeDto.ACCEPTING_BETS,
-                pendingWin = null
+                pendingWin = null,
+                currencyCode = "USD"
             )
         }
     }

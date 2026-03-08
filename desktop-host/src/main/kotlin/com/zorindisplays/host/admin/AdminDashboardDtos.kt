@@ -12,7 +12,12 @@ data class AdminDashboardDto(
     val totalBatchesToday: Long,
     val totalHitsToday: Long,
     val latestHit: AdminDashboardLatestHitDto?,
-    val latestBatches: List<AdminDashboardLatestBatchDto>
+    val latestBatches: List<AdminDashboardLatestBatchDto>,
+    val totalInAllTime: Long,
+    val totalOutAllTime: Long,
+    val totalInToday: Long,
+    val totalOutToday: Long,
+    val currencyCode: String,
 )
 
 @Serializable

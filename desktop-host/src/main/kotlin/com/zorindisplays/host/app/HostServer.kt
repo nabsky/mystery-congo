@@ -18,6 +18,7 @@ import com.zorindisplays.host.infrastructure.db.tables.JackpotConfigTable
 import com.zorindisplays.host.infrastructure.db.tables.JackpotHitTable
 import com.zorindisplays.host.infrastructure.db.tables.JackpotStateTable
 import com.zorindisplays.host.infrastructure.db.tables.PendingWinTable
+import com.zorindisplays.host.infrastructure.db.tables.ServerSettingsTable
 import com.zorindisplays.host.infrastructure.db.tables.SyncEventTable
 import com.zorindisplays.host.infrastructure.db.tables.SystemStateTable
 import com.zorindisplays.host.infrastructure.db.tables.TableActiveBoxTable
@@ -47,7 +48,8 @@ fun main() {
         BetBatchItemTable,
         JackpotHitTable,
         SyncEventTable,
-        DevicePresenceTable
+        DevicePresenceTable,
+        ServerSettingsTable
     )
     DatabaseBootstrap.bootstrap(config)
 
