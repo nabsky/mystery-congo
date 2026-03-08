@@ -144,7 +144,7 @@ fun MainScreen(
             .focusRequester(focusRequester)
             .focusable()
             .onKeyEvent { event ->
-                if (event.type == KeyEventType.KeyDown) { // KeyDown feels more responsive for games
+                if (event.type == KeyEventType.KeyDown && tableId >= 0) { // KeyDown feels more responsive for games
                     val boxIdx = when (event.key) {
                         Key.One, Key.NumPad1 -> 0
                         Key.Two, Key.NumPad2 -> 1

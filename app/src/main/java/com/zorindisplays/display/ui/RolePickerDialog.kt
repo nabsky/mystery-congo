@@ -62,11 +62,11 @@ fun RolePickerDialog(
 
                 Button(
                     onClick = {
-                        onRoleSelected(DeviceRole.HOST)
+                        onRoleSelected(DeviceRole.DISPLAY)
                         onDismiss()
                     },
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                ) { Text("HOST (Server)") }
+                ) { Text("DISPLAY (Viewer)") }
 
                 Button(
                     onClick = {

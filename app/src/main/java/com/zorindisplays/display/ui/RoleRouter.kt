@@ -73,7 +73,7 @@ fun RoleRouter() {
         // Create Config
         val configRole = when(role) {
              ModelDeviceRole.DEMO -> ModelDeviceRole.DEMO
-             ModelDeviceRole.HOST -> ModelDeviceRole.HOST
+             ModelDeviceRole.DISPLAY -> ModelDeviceRole.DISPLAY
              ModelDeviceRole.TABLE -> ModelDeviceRole.TABLE
              else -> ModelDeviceRole.DEMO
         }

@@ -17,6 +17,7 @@ class DataSourceProvider(
 ) {
     fun create(): JackpotDataSource {
         return when(config.role) {
+
             DeviceRole.DEMO -> EmulatorDataSource(
                 emulator = Emulator(
                     scope = scope,
@@ -24,27 +25,33 @@ class DataSourceProvider(
                     boxesPerTable = 9
                 )
             )
-            DeviceRole.HOST -> {
-                val repo = HostRepository(context)
-                val ds = HostDataSource(repo, scope)
-                val server = HostHttpServer(
-                    hostDataSource = ds,
-                    hostRepository = repo,
-                    scope = scope
-                )
-                server.start()
-                // ds.onClose = { server.stop() } REMOVED
-                // Return wrapper
-                HostDataSourceWrapper(ds, server)
-            }
-            DeviceRole.TABLE -> {
+
+            DeviceRole.DISPLAY -> {
+
                 var url = config.hostUrl
                 if (!url.startsWith("http")) {
                     url = "http://$url"
                 }
-                // Basic check for port: if no colon after protocol, add default 8080
-                // This handles "10.0.2.2" -> "http://10.0.2.2:8080"
-                // And "10.0.2.2:9000" -> "http://10.0.2.2:9000"
+
+                if (!url.substringAfter("://").contains(":")) {
+                    url = "$url:8080"
+                }
+
+                // DISPLAY просто подключается как tableId = -1
+                TableDataSource(
+                    baseUrl = url,
+                    tableId = -1,
+                    scope = scope
+                )
+            }
+
+            DeviceRole.TABLE -> {
+
+                var url = config.hostUrl
+                if (!url.startsWith("http")) {
+                    url = "http://$url"
+                }
+
                 if (!url.substringAfter("://").contains(":")) {
                     url = "$url:8080"
                 }
@@ -55,6 +62,7 @@ class DataSourceProvider(
                     scope = scope
                 )
             }
+
             else -> throw IllegalStateException("Role must be set before creating data source")
         }
     }
