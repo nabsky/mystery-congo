@@ -14,6 +14,14 @@ function tsFormatter(value) {
     return date.toLocaleString();
 }
 
+function boxIdsFormatter(value) {
+    if (!value || !Array.isArray(value) || !value.length) {
+        return "-";
+    }
+    return value.join(", ");
+}
+window.boxIdsFormatter = boxIdsFormatter;
+
 function formatMinorAmount(value, currencyCode = "") {
     const minor = Number(value ?? 0);
     const major = minor / 100;
@@ -473,6 +481,7 @@ async function refreshAll() {
             refreshPendingWins(),
             refreshJackpotSettings(),
             refreshDevices(),
+            refreshServerSettings(),
         ]);
     } catch (e) {
         console.error(e);
@@ -584,6 +593,60 @@ function setupFilters() {
     });
 }
 
+async function refreshServerSettings() {
+    const data = await fetchJson("/admin/settings/server");
+
+    document.getElementById("serverCurrencyCode").value = data.currencyCode ?? "";
+    document.getElementById("serverBaseBetAmount").value = data.baseBetAmount ?? 0;
+}
+
+function resetServerSettingsMessages() {
+    document.getElementById("serverSettingsSaveError").classList.add("d-none");
+    document.getElementById("serverSettingsSaveSuccess").classList.add("d-none");
+    document.getElementById("serverSettingsSaveError").textContent = "";
+}
+
+async function saveServerSettings(event) {
+    event.preventDefault();
+    resetServerSettingsMessages();
+
+    const payload = {
+        currencyCode: document.getElementById("serverCurrencyCode").value.trim().toUpperCase(),
+        baseBetAmount: Number(document.getElementById("serverBaseBetAmount").value)
+    };
+
+    const saveBtn = document.getElementById("saveServerSettingsBtn");
+    saveBtn.disabled = true;
+
+    try {
+        const response = await fetch("/admin/settings/server", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(text || `HTTP ${response.status}`);
+        }
+
+        document.getElementById("serverSettingsSaveSuccess").classList.remove("d-none");
+
+        await refreshServerSettings();
+        await refreshDashboard();
+        await refreshCurrentState();
+    } catch (e) {
+        const errorEl = document.getElementById("serverSettingsSaveError");
+        errorEl.textContent = e.message || "Failed to save server settings";
+        errorEl.classList.remove("d-none");
+    } finally {
+        saveBtn.disabled = false;
+    }
+}
+
 function setupSettingsUi() {
     const modalElement = document.getElementById("editJackpotSettingsModal");
     state.editJackpotModal = new bootstrap.Modal(modalElement);
@@ -594,6 +657,14 @@ function setupSettingsUi() {
     document.getElementById("refreshSettingsBtn")
         .addEventListener("click", async () => {
             await refreshJackpotSettings();
+        });
+
+    document.getElementById("serverSettingsForm")
+        .addEventListener("submit", saveServerSettings);
+
+    document.getElementById("refreshServerSettingsBtn")
+        .addEventListener("click", async () => {
+            await refreshServerSettings();
         });
 }
 

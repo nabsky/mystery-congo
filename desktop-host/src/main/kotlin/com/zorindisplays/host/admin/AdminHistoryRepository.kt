@@ -54,8 +54,25 @@ class AdminHistoryRepository {
                 .groupBy { it[BetBatchItemTable.betBatchId] }
         }
 
+
+
         batchRows.map { row ->
             val batchId = row[BetBatchTable.id]
+            val items = itemsByBatchId[batchId]
+                .orEmpty()
+                .sortedBy { it[BetBatchItemTable.seqNo] }
+                .map { item ->
+                    AdminBetBatchItemDto(
+                        id = item[BetBatchItemTable.id],
+                        betBatchId = item[BetBatchItemTable.betBatchId],
+                        boxId = item[BetBatchItemTable.boxId],
+                        seqNo = item[BetBatchItemTable.seqNo],
+                        result = item[BetBatchItemTable.result]
+                    )
+                }
+            val boxIds = items
+                .sortedBy { it.seqNo }
+                .map { it.boxId }
             AdminBetBatchDto(
                 id = batchId,
                 tableId = row[BetBatchTable.tableId],
@@ -64,18 +81,8 @@ class AdminHistoryRepository {
                 result = row[BetBatchTable.result],
                 winningJackpotId = row[BetBatchTable.winningJackpotId],
                 winningBoxId = row[BetBatchTable.winningBoxId],
-                items = itemsByBatchId[batchId]
-                    .orEmpty()
-                    .sortedBy { it[BetBatchItemTable.seqNo] }
-                    .map { item ->
-                        AdminBetBatchItemDto(
-                            id = item[BetBatchItemTable.id],
-                            betBatchId = item[BetBatchItemTable.betBatchId],
-                            boxId = item[BetBatchItemTable.boxId],
-                            seqNo = item[BetBatchItemTable.seqNo],
-                            result = item[BetBatchItemTable.result]
-                        )
-                    }
+                boxIds = boxIds,
+                items = items
             )
         }
     }

@@ -11,7 +11,8 @@ data class AdminBetBatchDto(
     val result: String?,
     val winningJackpotId: String?,
     val winningBoxId: Int?,
-    val items: List<AdminBetBatchItemDto>
+    val boxIds: List<Int>,
+    val items: List<AdminBetBatchItemDto>,
 )
 
 @Serializable
