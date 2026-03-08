@@ -35,9 +35,7 @@ fun RolePickerDialog(
     currentRole: DeviceRole,
     initialHostUrl: String,
     initialTableId: Int,
-    onRoleSelected: (DeviceRole) -> Unit,
-    onHostUrlChanged: (String) -> Unit,
-    onTableIdChanged: (Int) -> Unit,
+    onSave: (DeviceRole, String, Int) -> Unit,
     onDismiss: () -> Unit
 ) {
     var selectedRole by remember { mutableStateOf(if (currentRole == DeviceRole.UNSET) DeviceRole.DEMO else currentRole) }
@@ -54,13 +52,17 @@ fun RolePickerDialog(
     val requiresTable = selectedRole == DeviceRole.TABLE
 
     fun save() {
-        onHostUrlChanged(hostUrl.trim())
-
-        if (selectedRole == DeviceRole.TABLE) {
-            onTableIdChanged(selectedTableNumber - 1)
+        val finalTableId = if (selectedRole == DeviceRole.TABLE) {
+            selectedTableNumber - 1
+        } else {
+            initialTableId.coerceIn(0, 7)
         }
 
-        onRoleSelected(selectedRole)
+        onSave(
+            selectedRole,
+            hostUrl.trim(),
+            finalTableId
+        )
         onDismiss()
     }
 

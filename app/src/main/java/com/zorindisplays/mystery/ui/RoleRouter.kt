@@ -9,6 +9,7 @@ import com.zorindisplays.mystery.model.DeviceConfig
 import com.zorindisplays.mystery.model.DataSourceProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.ViewModelProvider
+import com.zorindisplays.mystery.model.DEFAULT_HOST_ADDRESS
 import com.zorindisplays.mystery.ui.screens.DisplayScreen
 import com.zorindisplays.mystery.ui.screens.TableScreen
 import kotlinx.coroutines.launch
@@ -31,7 +32,7 @@ fun RoleRouter() {
     val prefs = remember { DevicePrefs(context) }
 
     val role by prefs.roleFlow.collectAsState(initial = ModelDeviceRole.UNSET)
-    val savedHostUrl by prefs.hostAddressFlow.collectAsState(initial = "http://192.168.1.100:8080")
+    val savedHostUrl by prefs.hostAddressFlow.collectAsState(initial = DEFAULT_HOST_ADDRESS)
     val tableId by prefs.tableIdFlow.collectAsState(initial = 0)
 
     var showDialog by remember { mutableStateOf(false) }
@@ -50,35 +51,23 @@ fun RoleRouter() {
             currentRole = role,
             initialHostUrl = savedHostUrl,
             initialTableId = tableId,
-            onRoleSelected = { selected ->
+            onSave = { selectedRole, hostUrl, selectedTableId ->
                 scope.launch {
-                    prefs.setRole(selected)
+                    prefs.saveConfig(
+                        role = selectedRole,
+                        hostAddress = hostUrl,
+                        tableId = selectedTableId
+                    )
                 }
             },
-            onHostUrlChanged = { newUrl ->
-                scope.launch {
-                    prefs.setHostAddress(newUrl)
-                }
-            },
-            onTableIdChanged = { newId ->
-                scope.launch {
-                    prefs.setTableId(newId)
-                }
-            },
-            onDismiss = { /* Forced choice? or strictly on UNSET */ }
+            onDismiss = { showDialog = false }
         )
     }
 
     if (role != ModelDeviceRole.UNSET) {
         // Create Config
-        val configRole = when(role) {
-             ModelDeviceRole.DEMO -> ModelDeviceRole.DEMO
-             ModelDeviceRole.DISPLAY -> ModelDeviceRole.DISPLAY
-             ModelDeviceRole.TABLE -> ModelDeviceRole.TABLE
-             else -> ModelDeviceRole.DEMO
-        }
         val config = DeviceConfig(
-            role = configRole,
+            role = role,
             hostUrl = savedHostUrl,
             tableId = tableId
         )

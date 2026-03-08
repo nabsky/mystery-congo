@@ -12,6 +12,8 @@ import java.util.UUID
 
 val Context.devicePrefsDataStore by preferencesDataStore(name = "device_prefs")
 
+const val DEFAULT_HOST_ADDRESS = "http://192.168.1.100:8080"
+
 data class DeviceConfig(
     val role: DeviceRole = DeviceRole.UNSET,
     val hostUrl: String = "",
@@ -33,11 +35,11 @@ class DevicePrefs(private val context: Context) {
     }
 
     val hostAddressFlow: Flow<String> = context.devicePrefsDataStore.data.map { prefs ->
-        prefs[DevicePrefsKeys.hostAddress] ?: "http://192.168.1.100:8080"
+        prefs[DevicePrefsKeys.hostAddress] ?: DEFAULT_HOST_ADDRESS
     }
 
     val tableIdFlow: Flow<Int> = context.devicePrefsDataStore.data.map { prefs ->
-       prefs[DevicePrefsKeys.tableId] ?: 0
+        (prefs[DevicePrefsKeys.tableId] ?: 0).coerceIn(0, 7)
     }
 
     val deviceIdFlow: Flow<String> = context.devicePrefsDataStore.data.map { prefs ->
@@ -71,5 +73,17 @@ class DevicePrefs(private val context: Context) {
             }
         }
         return id
+    }
+
+    suspend fun saveConfig(
+        role: DeviceRole,
+        hostAddress: String,
+        tableId: Int
+    ) {
+        context.devicePrefsDataStore.edit { prefs ->
+            prefs[DevicePrefsKeys.role] = role.name
+            prefs[DevicePrefsKeys.hostAddress] = hostAddress.trim()
+            prefs[DevicePrefsKeys.tableId] = tableId.coerceIn(0, 7)
+        }
     }
 }
