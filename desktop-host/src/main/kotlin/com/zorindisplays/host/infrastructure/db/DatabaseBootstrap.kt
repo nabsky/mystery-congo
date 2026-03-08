@@ -25,7 +25,7 @@ object DatabaseBootstrap {
                 ServerSettingsTable.insert {
                     it[id] = 1L
                     it[currencyCode] = "CFA"
-                    it[baseBetAmount] = 100000L
+                    it[baseBetAmount] = 1000L
                     it[updatedAt] = System.currentTimeMillis()
                 }
             }
