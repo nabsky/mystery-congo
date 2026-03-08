@@ -314,6 +314,26 @@ async function refreshDashboard() {
     const dashboard = await fetchJson("/admin/dashboard");
 
     document.getElementById("dashboardSystemMode").textContent = dashboard.systemMode ?? "-";
+    const statusBadge = document.getElementById("systemStatusBadge");
+    if (statusBadge) {
+        const mode = dashboard.systemMode ?? "UNKNOWN";
+        statusBadge.textContent = mode;
+        statusBadge.classList.remove(
+            "bg-success",
+            "bg-warning",
+            "bg-danger",
+            "bg-secondary"
+        );
+        if (mode === "ACCEPTING_BETS") {
+            statusBadge.classList.add("bg-success");
+        } else if (mode === "PAYOUT") {
+            statusBadge.classList.add("bg-warning");
+        } else if (mode === "LOCKED") {
+            statusBadge.classList.add("bg-danger");
+        } else {
+            statusBadge.classList.add("bg-secondary");
+        }
+    }
     document.getElementById("dashboardBatchesToday").textContent = dashboard.totalBatchesToday ?? 0;
     document.getElementById("dashboardHitsToday").textContent = dashboard.totalHitsToday ?? 0;
 
