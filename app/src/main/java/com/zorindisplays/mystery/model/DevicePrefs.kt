@@ -12,6 +12,12 @@ import java.util.UUID
 
 val Context.devicePrefsDataStore by preferencesDataStore(name = "device_prefs")
 
+data class DeviceConfig(
+    val role: DeviceRole = DeviceRole.UNSET,
+    val hostUrl: String = "",
+    val tableId: Int = 0
+)
+
 object DevicePrefsKeys {
     val role = stringPreferencesKey("role")
     val deviceId = stringPreferencesKey("deviceId")
@@ -52,9 +58,10 @@ class DevicePrefs(private val context: Context) {
 
     suspend fun setTableId(id: Int) {
         context.devicePrefsDataStore.edit { prefs ->
-            prefs[DevicePrefsKeys.tableId] = id
+            prefs[DevicePrefsKeys.tableId] = id.coerceIn(0, 7)
         }
     }
+
 
     suspend fun ensureDeviceId(): String {
         var id = ""

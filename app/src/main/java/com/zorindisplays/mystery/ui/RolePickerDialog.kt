@@ -1,18 +1,35 @@
 package com.zorindisplays.mystery.ui
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
-import androidx.compose.foundation.layout.Column
-import androidx.compose.runtime.*
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.zorindisplays.mystery.model.DeviceRole
-import androidx.compose.foundation.text.KeyboardOptions
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RolePickerDialog(
     currentRole: DeviceRole,
@@ -23,65 +40,159 @@ fun RolePickerDialog(
     onTableIdChanged: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
+    var selectedRole by remember { mutableStateOf(if (currentRole == DeviceRole.UNSET) DeviceRole.DEMO else currentRole) }
     var hostUrl by remember { mutableStateOf(initialHostUrl) }
-    var tableIdStr by remember { mutableStateOf(initialTableId.toString()) }
+
+    // UI показывает 1..8, внутрь сохраняем 0..7
+    var selectedTableNumber by remember {
+        mutableIntStateOf((initialTableId.coerceIn(0, 7)) + 1)
+    }
+
+    var tableMenuExpanded by remember { mutableStateOf(false) }
+
+    val requiresHost = selectedRole == DeviceRole.DISPLAY || selectedRole == DeviceRole.TABLE
+    val requiresTable = selectedRole == DeviceRole.TABLE
+
+    fun save() {
+        onHostUrlChanged(hostUrl.trim())
+
+        if (selectedRole == DeviceRole.TABLE) {
+            onTableIdChanged(selectedTableNumber - 1)
+        }
+
+        onRoleSelected(selectedRole)
+        onDismiss()
+    }
+
+    val isSaveEnabled =
+        when (selectedRole) {
+            DeviceRole.DEMO -> true
+            DeviceRole.DISPLAY, DeviceRole.TABLE -> hostUrl.trim().isNotEmpty()
+            else -> false
+        }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Выберите роль устройства") },
+        title = { Text("Select device role") },
         text = {
-            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                // Input for Host URL (mostly for TABLE)
-                androidx.compose.material3.OutlinedTextField(
-                    value = hostUrl,
-                    onValueChange = {
-                       hostUrl = it
-                       onHostUrlChanged(it)
-                    },
-                    label = { Text("Host URL (for TABLE)") },
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text("Role")
+
+                RoleOptionRow(
+                    selected = selectedRole == DeviceRole.DEMO,
+                    title = "Demo",
+                    subtitle = "Local simulation",
+                    onClick = { selectedRole = DeviceRole.DEMO }
                 )
 
-                androidx.compose.material3.OutlinedTextField(
-                    value = tableIdStr,
-                    onValueChange = {
-                        if (it.all { char -> char.isDigit() }) {
-                           tableIdStr = it
-                           onTableIdChanged(it.toIntOrNull() ?: 0)
+                RoleOptionRow(
+                    selected = selectedRole == DeviceRole.DISPLAY,
+                    title = "Display",
+                    subtitle = "Passive viewer",
+                    onClick = { selectedRole = DeviceRole.DISPLAY }
+                )
+
+                RoleOptionRow(
+                    selected = selectedRole == DeviceRole.TABLE,
+                    title = "Table",
+                    subtitle = "Accepts bets for one table",
+                    onClick = { selectedRole = DeviceRole.TABLE }
+                )
+
+                if (requiresHost) {
+                    Spacer(Modifier.height(4.dp))
+
+                    OutlinedTextField(
+                        value = hostUrl,
+                        onValueChange = { hostUrl = it },
+                        label = { Text("Host URL") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                if (requiresTable) {
+                    ExposedDropdownMenuBox(
+                        expanded = tableMenuExpanded,
+                        onExpandedChange = { tableMenuExpanded = !tableMenuExpanded }
+                    ) {
+                        OutlinedTextField(
+                            value = "Table $selectedTableNumber",
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Table number") },
+                            trailingIcon = {
+                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = tableMenuExpanded)
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .menuAnchor()
+                        )
+
+                        ExposedDropdownMenu(
+                            expanded = tableMenuExpanded,
+                            onDismissRequest = { tableMenuExpanded = false }
+                        ) {
+                            (1..8).forEach { tableNumber ->
+                                DropdownMenuItem(
+                                    text = { Text("Table $tableNumber") },
+                                    onClick = {
+                                        selectedTableNumber = tableNumber
+                                        tableMenuExpanded = false
+                                    }
+                                )
+                            }
                         }
-                    },
-                    label = { Text("Table ID (0-7)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
-                )
-
-                Button(
-                    onClick = { onRoleSelected(DeviceRole.DEMO); onDismiss() },
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                ) { Text("DEMO (Emulator)") }
-
-                Button(
-                    onClick = {
-                        onRoleSelected(DeviceRole.DISPLAY)
-                        onDismiss()
-                    },
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                ) { Text("DISPLAY (Viewer)") }
-
-                Button(
-                    onClick = {
-                        onRoleSelected(DeviceRole.TABLE)
-                        onDismiss()
-                    },
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                ) { Text("TABLE (Client)") }
+                    }
+                }
             }
         },
         confirmButton = {
-            // No cancel, must pick role? Or allow dismiss if role already set
-            if (currentRole != DeviceRole.UNSET) {
-                Button(onClick = onDismiss) { Text("Закрыть") }
+            Button(
+                onClick = ::save,
+                enabled = isSaveEnabled
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
             }
         }
     )
+}
+
+@Composable
+private fun RoleOptionRow(
+    selected: Boolean,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = onClick
+        )
+
+        Column(
+            modifier = Modifier.padding(start = 6.dp)
+        ) {
+            Text(text = title)
+            Text(
+                text = subtitle,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+        }
+    }
 }
