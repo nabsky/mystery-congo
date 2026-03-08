@@ -68,3 +68,14 @@ body {
     object-fit: contain;
     flex: 0 0 auto;
 }
+
+.admin-logo {
+    height: 56px;
+    width: auto;
+    object-fit: contain;
+    transition: opacity 0.15s ease;
+}
+
+.admin-logo:hover {
+    opacity: 0.8;
+}
