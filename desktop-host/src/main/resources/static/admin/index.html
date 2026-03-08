@@ -42,7 +42,10 @@
             <div class="card shadow-sm">
                 <div class="card-body">
                     <div class="text-muted small">RUBY</div>
-                    <div class="fs-5 fw-semibold" id="cardRuby">-</div>
+                    <div class="jackpot-card-value" id="cardRubyWrap">
+                        <img src="/admin/ui/img/ruby_icon.png" alt="Ruby" class="jackpot-card-icon">
+                        <span class="fs-5 fw-semibold" id="cardRuby">-</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -50,7 +53,10 @@
             <div class="card shadow-sm">
                 <div class="card-body">
                     <div class="text-muted small">GOLD</div>
-                    <div class="fs-5 fw-semibold" id="cardGold">-</div>
+                    <div class="jackpot-card-value" id="cardGoldWrap">
+                        <img src="/admin/ui/img/gold_icon.png" alt="Gold" class="jackpot-card-icon">
+                        <span class="fs-5 fw-semibold" id="cardGold">-</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -58,7 +64,10 @@
             <div class="card shadow-sm">
                 <div class="card-body">
                     <div class="text-muted small">JADE</div>
-                    <div class="fs-5 fw-semibold" id="cardJade">-</div>
+                    <div class="jackpot-card-value" id="cardJadeWrap">
+                        <img src="/admin/ui/img/jade_icon.png" alt="Jade" class="jackpot-card-icon">
+                        <span class="fs-5 fw-semibold" id="cardJade">-</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -163,9 +172,23 @@
                     <div class="card shadow-sm h-100">
                         <div class="card-header">Current Jackpots</div>
                         <div class="card-body">
-                            <div class="mb-2"><strong>RUBY:</strong> <span id="dashboardRuby">-</span></div>
-                            <div class="mb-2"><strong>GOLD:</strong> <span id="dashboardGold">-</span></div>
-                            <div><strong>JADE:</strong> <span id="dashboardJade">-</span></div>
+                            <div class="dashboard-jackpot-row mb-2">
+                                <img src="/admin/ui/img/ruby_icon.png" alt="Ruby" class="dashboard-jackpot-icon">
+                                <strong>RUBY:</strong>
+                                <span id="dashboardRuby">-</span>
+                            </div>
+
+                            <div class="dashboard-jackpot-row mb-2">
+                                <img src="/admin/ui/img/gold_icon.png" alt="Gold" class="dashboard-jackpot-icon">
+                                <strong>GOLD:</strong>
+                                <span id="dashboardGold">-</span>
+                            </div>
+
+                            <div class="dashboard-jackpot-row">
+                                <img src="/admin/ui/img/jade_icon.png" alt="Jade" class="dashboard-jackpot-icon">
+                                <strong>JADE:</strong>
+                                <span id="dashboardJade">-</span>
+                            </div>
                         </div>
                     </div>
                 </div>

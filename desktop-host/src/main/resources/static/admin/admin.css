@@ -42,3 +42,29 @@ body {
 .settings-action-btn {
     min-width: 72px;
 }
+
+.jackpot-card-value {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.jackpot-card-icon {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    flex: 0 0 auto;
+}
+
+.dashboard-jackpot-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dashboard-jackpot-icon {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+    flex: 0 0 auto;
+}
