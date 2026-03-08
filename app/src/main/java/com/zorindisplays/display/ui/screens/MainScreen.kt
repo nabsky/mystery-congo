@@ -89,6 +89,8 @@ fun MainScreen(
     onResetRole: () -> Unit
 ) {
     val dataSource = viewModel.dataSource
+    val tableControlDataSource = dataSource as? com.zorindisplays.display.model.JackpotTableControlDataSource
+
     val demo: DemoState by dataSource.state.collectAsState()
 
     val jackpot1 = demo.jackpots["RUBY"] ?: 0L
@@ -144,7 +146,7 @@ fun MainScreen(
             .focusRequester(focusRequester)
             .focusable()
             .onKeyEvent { event ->
-                if (event.type == KeyEventType.KeyDown && tableId >= 0) { // KeyDown feels more responsive for games
+                if (event.type == KeyEventType.KeyDown && tableId >= 0 && tableControlDataSource != null) {
                     val boxIdx = when (event.key) {
                         Key.One, Key.NumPad1 -> 0
                         Key.Two, Key.NumPad2 -> 1
@@ -162,12 +164,16 @@ fun MainScreen(
                     val currentWin = win
                     if (currentWin is WinPhase.Takeover && currentWin.table == tableId) {
                         if (boxIdx >= 0) {
-                             uiScope.launch { dataSource.selectPayoutBox(tableId, boxIdx) }
-                             return@onKeyEvent true
+                            tableControlDataSource?.let { ds ->
+                                uiScope.launch { ds.selectPayoutBox(tableId, boxIdx) }
+                            }
+                            return@onKeyEvent true
                         }
                         if (event.key == Key.Enter || event.key == Key.NumPadEnter) {
-                             uiScope.launch { dataSource.confirmPayout(tableId) }
-                             return@onKeyEvent true
+                            tableControlDataSource?.let { ds ->
+                                uiScope.launch { ds.confirmPayout(tableId) }
+                            }
+                            return@onKeyEvent true
                         }
                         // Ignore other keys during takeover for this table? Or allow pass-through?
                         // Better to consume if it's a number/enter to avoid accidental bets if logic allows (though bets should be blocked by system status)
@@ -176,11 +182,15 @@ fun MainScreen(
 
                     // Normal Betting Mode
                     if (boxIdx >= 0) {
-                        uiScope.launch { dataSource.toggleBox(tableId, boxIdx) }
+                        tableControlDataSource?.let { ds ->
+                            uiScope.launch { ds.toggleBox(tableId, boxIdx) }
+                        }
                         return@onKeyEvent true
                     }
                     if (event.key == Key.Enter || event.key == Key.NumPadEnter) {
-                        uiScope.launch { dataSource.confirmBets(tableId) }
+                        tableControlDataSource?.let { ds ->
+                            uiScope.launch { ds.confirmBets(tableId) }
+                        }
                         return@onKeyEvent true
                     }
                 }

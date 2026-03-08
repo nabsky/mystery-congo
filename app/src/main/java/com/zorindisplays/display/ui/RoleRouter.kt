@@ -89,7 +89,7 @@ fun RoleRouter() {
             val factory = object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    val ds = DataSourceProvider(context.applicationContext, scope, config).create()
+                    val ds = DataSourceProvider(scope, config).create()
                     return MainViewModel(ds) as T
                 }
             }

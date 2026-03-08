@@ -4,6 +4,7 @@ import android.util.Log
 import com.zorindisplays.display.model.DemoEvent
 import com.zorindisplays.display.model.DemoState
 import com.zorindisplays.display.model.JackpotDataSource
+import com.zorindisplays.display.model.JackpotTableControlDataSource
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
@@ -41,7 +42,7 @@ class TableDataSource(
     private val tableId: Int,
     private val scope: CoroutineScope,
     private val pollIntervalMs: Long = 500
-) : JackpotDataSource {
+) : JackpotTableControlDataSource {
 
     private val _state = MutableStateFlow(DemoState())
     override val state: StateFlow<DemoState> get() = _state.asStateFlow()

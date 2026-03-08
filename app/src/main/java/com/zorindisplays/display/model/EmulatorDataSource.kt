@@ -5,7 +5,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 
-class EmulatorDataSource(val emulator: Emulator) : JackpotDataSource {
+class EmulatorDataSource(val emulator: Emulator) : JackpotTableControlDataSource {
     override val state: StateFlow<DemoState> get() = emulator.state
     override val events: SharedFlow<DemoEvent> get() = emulator.events
 
