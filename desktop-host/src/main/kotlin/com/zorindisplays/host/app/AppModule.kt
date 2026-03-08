@@ -10,6 +10,7 @@ import com.zorindisplays.host.admin.registerAdminSettingsRoutes
 import com.zorindisplays.host.admin.registerAdminDashboardRoutes
 import com.zorindisplays.host.admin.registerAdminDevicesRoutes
 import com.zorindisplays.host.admin.registerAdminSystemRoutes
+import com.zorindisplays.host.admin.registerDevicePresenceRoutes
 import com.zorindisplays.host.api.registerAdminWsRoutes
 import com.zorindisplays.host.api.registerHealthRoutes
 import com.zorindisplays.host.api.registerInputRoutes
@@ -73,6 +74,7 @@ fun Application.appModule(
         registerSnapshotRoutes(queryService)
         registerSyncRoutes(queryService)
         registerInputRoutes(commandService)
+        registerDevicePresenceRoutes(adminDevicesRepository)
 
         authenticate("admin-auth") {
             registerAdminRoutes(adminHistoryRepository)
