@@ -519,6 +519,11 @@ class HostWriteRepository {
             val jackpotId = row[PendingWinTable.jackpotId]
             val winningBoxId = row[PendingWinTable.winningBoxId]
 
+            PendingWinTable.update({ PendingWinTable.id eq pendingWinId }) {
+                it[status] = "CONFIRMED"
+                it[updatedAt] = now
+            }
+
             val cfg = JackpotConfigTable.selectAll()
                 .where { JackpotConfigTable.jackpotId eq jackpotId }
                 .single()

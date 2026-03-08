@@ -7,6 +7,7 @@ import com.zorindisplays.host.domain.model.PendingWin
 import com.zorindisplays.host.domain.model.SystemMode
 import com.zorindisplays.host.domain.model.TableState
 import com.zorindisplays.host.infrastructure.db.dbQuery
+import com.zorindisplays.host.infrastructure.db.tables.DevicePresenceTable
 import com.zorindisplays.host.infrastructure.db.tables.JackpotStateTable
 import com.zorindisplays.host.infrastructure.db.tables.PendingWinTable
 import com.zorindisplays.host.infrastructure.db.tables.SystemStateTable
@@ -37,6 +38,18 @@ class ExposedStateRepository {
                 )
             }
 
+        val onlineTables = DevicePresenceTable
+            .selectAll()
+            .mapNotNull { row ->
+                val lastSeen = row[DevicePresenceTable.lastSeenAt]
+                val tableId = row[DevicePresenceTable.tableId]
+
+                if (row[DevicePresenceTable.deviceType] == "TABLE" &&
+                    now - lastSeen < 10_000L
+                ) tableId else null
+            }
+            .toSet()
+
         val tables: List<TableState> = TableStateTable
             .selectAll()
             .orderBy(TableStateTable.tableId)
@@ -64,7 +77,7 @@ class ExposedStateRepository {
                 tableId = tableId,
                 activeBoxes = activeBoxes,
                 recentBoxes = recentBoxes,
-                isActive = lastSeenAt?.let { now - it < 60_000L } ?: false,
+                isActive = tableId in onlineTables,
                 lastSeenAt = lastSeenAt
             )
         }

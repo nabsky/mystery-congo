@@ -2,19 +2,25 @@ package com.zorindisplays.host.admin
 
 import com.zorindisplays.host.infrastructure.db.dbQuery
 import com.zorindisplays.host.infrastructure.db.tables.DevicePresenceTable
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.update
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
+import org.jetbrains.exposed.sql.deleteWhere
 
 class AdminDevicesRepository {
 
     companion object {
-        private const val ONLINE_TTL_MS = 10_000L
+        private const val ONLINE_TTL_MS = 15_000L
+        private const val STALE_DELETE_TTL_MS = 24 * 60 * 60 * 1000L
     }
 
     suspend fun heartbeat(request: DeviceHeartbeatRequest): DeviceHeartbeatResponse = dbQuery {
         val now = System.currentTimeMillis()
+
+        DevicePresenceTable.deleteWhere {
+            DevicePresenceTable.lastSeenAt less (now - STALE_DELETE_TTL_MS)
+        }
 
         val exists = DevicePresenceTable.selectAll()
             .where { DevicePresenceTable.deviceId eq request.deviceId }
