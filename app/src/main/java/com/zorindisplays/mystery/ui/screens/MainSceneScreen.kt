@@ -44,11 +44,8 @@ import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToLong
-import androidx.compose.ui.input.key.*
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.foundation.focusable
 import com.zorindisplays.mystery.emulator.EmulatorDataSource
+import com.zorindisplays.mystery.model.MainViewModel
 
 private sealed interface WinPhase {
     data object None : WinPhase
@@ -83,13 +80,13 @@ private sealed interface WinPhase {
 }
 
 @Composable
-fun MainScreen(
-    viewModel: com.zorindisplays.mystery.model.MainViewModel,
-    tableId: Int = 0,
+fun MainSceneScreen(
+    viewModel: MainViewModel,
+    tableId: Int,
+    inputModifier: Modifier = Modifier,
     onResetRole: () -> Unit
-) {
+){
     val dataSource = viewModel.dataSource
-    val tableControlDataSource = dataSource as? com.zorindisplays.mystery.model.JackpotTableControlDataSource
 
     val demo: JackpotState by dataSource.state.collectAsState()
 
@@ -102,9 +99,6 @@ fun MainScreen(
 
     // Старт/остановка эмулятора
     val uiScope = rememberCoroutineScope()
-
-    // Focus handling for keyboard input
-    val focusRequester = remember { FocusRequester() }
 
     DisposableEffect(dataSource) {
         dataSource.start(uiScope)
@@ -143,65 +137,9 @@ fun MainScreen(
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .focusRequester(focusRequester)
-            .focusable()
-            .onKeyEvent { event ->
-                if (event.type == KeyEventType.KeyDown && tableId >= 0 && tableControlDataSource != null) {
-                    val boxIdx = when (event.key) {
-                        Key.One, Key.NumPad1 -> 0
-                        Key.Two, Key.NumPad2 -> 1
-                        Key.Three, Key.NumPad3 -> 2
-                        Key.Four, Key.NumPad4 -> 3
-                        Key.Five, Key.NumPad5 -> 4
-                        Key.Six, Key.NumPad6 -> 5
-                        Key.Seven, Key.NumPad7 -> 6
-                        Key.Eight, Key.NumPad8 -> 7
-                        Key.Nine, Key.NumPad9 -> 8
-                        else -> -1
-                    }
-
-                    // Check for Jackpot Payout Mode (Takeover)
-                    val currentWin = win
-                    if (currentWin is WinPhase.Takeover && currentWin.table == tableId) {
-                        if (boxIdx >= 0) {
-                            tableControlDataSource?.let { ds ->
-                                uiScope.launch { ds.selectPayoutBox(tableId, boxIdx) }
-                            }
-                            return@onKeyEvent true
-                        }
-                        if (event.key == Key.Enter || event.key == Key.NumPadEnter) {
-                            tableControlDataSource?.let { ds ->
-                                uiScope.launch { ds.confirmPayout(tableId) }
-                            }
-                            return@onKeyEvent true
-                        }
-                        // Ignore other keys during takeover for this table? Or allow pass-through?
-                        // Better to consume if it's a number/enter to avoid accidental bets if logic allows (though bets should be blocked by system status)
-                        return@onKeyEvent false
-                    }
-
-                    // Normal Betting Mode
-                    if (boxIdx >= 0) {
-                        tableControlDataSource?.let { ds ->
-                            uiScope.launch { ds.toggleBox(tableId, boxIdx) }
-                        }
-                        return@onKeyEvent true
-                    }
-                    if (event.key == Key.Enter || event.key == Key.NumPadEnter) {
-                        tableControlDataSource?.let { ds ->
-                            uiScope.launch { ds.confirmBets(tableId) }
-                        }
-                        return@onKeyEvent true
-                    }
-                }
-                false
-            }
+            .then(inputModifier)
     ) {
         val scope = this
-
-        LaunchedEffect(Unit) {
-            focusRequester.requestFocus()
-        }
 
         val density = LocalDensity.current
         val wPx = with(density) { scope.maxWidth.toPx() }
@@ -401,8 +339,8 @@ fun MainScreen(
             var clickCount by remember { mutableStateOf(0) }
             LaunchedEffect(clickCount) {
                 if (clickCount > 0) {
-                   delay(2000)
-                   clickCount = 0
+                    delay(2000)
+                    clickCount = 0
                 }
             }
 
@@ -419,11 +357,11 @@ fun MainScreen(
                         .width(230.dp)
                         .height(170.dp)
                         .clickable {
-                             clickCount++
-                             if (clickCount >= 5) {
-                                 onResetRole()
-                                 clickCount = 0
-                             }
+                            clickCount++
+                            if (clickCount >= 5) {
+                                onResetRole()
+                                clickCount = 0
+                            }
                         },
                     contentScale = ContentScale.Fit
                 )
@@ -937,85 +875,85 @@ fun MainScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     val animatedAmount = (t.amountWon.toFloat() * counterProgress.value).roundToLong()
-                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                         Spacer(Modifier.height(gemTop + gemHeight + gemBottomGap - overlayH * 0.5f))
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Spacer(Modifier.height(gemTop + gemHeight + gemBottomGap - overlayH * 0.5f))
 
-                         BasicText(
-                             text = title,
-                             style = TextStyle(
-                                 color = Color.White.copy(alpha = titleAlpha.value),
-                                 fontFamily = MontserratBold,
-                                 fontSize = titleFont,
-                                 letterSpacing = titleFont * 0.09f,
-                             )
-                         )
+                        BasicText(
+                            text = title,
+                            style = TextStyle(
+                                color = Color.White.copy(alpha = titleAlpha.value),
+                                fontFamily = MontserratBold,
+                                fontSize = titleFont,
+                                letterSpacing = titleFont * 0.09f,
+                            )
+                        )
 
-                         Spacer(Modifier.height(titleBottomGap))
+                        Spacer(Modifier.height(titleBottomGap))
 
-                         // Fix for centered "0": lock width by measuring final formatted string and using a fixed-width Box.
-                         val measurer = rememberTextMeasurer()
-                         val amountStyle = remember(amountFont) { TextStyle(fontFamily = ChangoRegular, fontSize = amountFont) }
-                         val moneyFmt = remember {
-                             MoneyFormat(
-                                 currency = "",
-                                 currencyPosition = CurrencyPosition.Prefix,
-                                 thousandsSeparator = ' ',
-                                 decimalSeparator = ',',
-                                 fractionDigits = 0,
-                                 showCents = false
-                             )
-                         }
-                         val reserveWidthDp = remember(t.amountWon, amountStyle) {
-                             val reserveText = formatMoneyFromMinor(t.amountWon, moneyFmt)
-                             val res = measurer.measure(
-                                 text = AnnotatedString(reserveText),
-                                 style = amountStyle.copy(textAlign = TextAlign.Center),
-                                 maxLines = 1,
-                                 overflow = TextOverflow.Clip,
-                                 softWrap = false
-                             )
-                             with(density) { res.size.width.toDp() }
-                         }
+                        // Fix for centered "0": lock width by measuring final formatted string and using a fixed-width Box.
+                        val measurer = rememberTextMeasurer()
+                        val amountStyle = remember(amountFont) { TextStyle(fontFamily = ChangoRegular, fontSize = amountFont) }
+                        val moneyFmt = remember {
+                            MoneyFormat(
+                                currency = "",
+                                currencyPosition = CurrencyPosition.Prefix,
+                                thousandsSeparator = ' ',
+                                decimalSeparator = ',',
+                                fractionDigits = 0,
+                                showCents = false
+                            )
+                        }
+                        val reserveWidthDp = remember(t.amountWon, amountStyle) {
+                            val reserveText = formatMoneyFromMinor(t.amountWon, moneyFmt)
+                            val res = measurer.measure(
+                                text = AnnotatedString(reserveText),
+                                style = amountStyle.copy(textAlign = TextAlign.Center),
+                                maxLines = 1,
+                                overflow = TextOverflow.Clip,
+                                softWrap = false
+                            )
+                            with(density) { res.size.width.toDp() }
+                        }
 
-                         // Stable centering
-                         Box(
-                             modifier = Modifier
+                        // Stable centering
+                        Box(
+                            modifier = Modifier
                                 // Visual compensation: some fonts/outlined text have asymmetric glyph bounds ("0" looks shifted right).
                                 // Shift amount block slightly left to align with the rest of the centered layout.
                                 .offset(x = with(density) { (-30f).toDp() })
-                                 .width(reserveWidthDp)
-                                 .clip(RoundedCornerShape(0.dp)),
-                             contentAlignment = Alignment.Center
-                         ) {
-                             AmountText(
-                                 amountMinor = animatedAmount,
-                                 modifier = Modifier.graphicsLayer(alpha = amountAlpha.value),
-                                 style = amountStyle,
-                                 format = moneyFmt,
-                                 fillColor = Color.White,
-                                 strokeColor = Color.Transparent,
-                                 strokeWidth = 0.dp,
-                                 textAlign = TextAlign.Center,
-                                 verticalAlign = VerticalAlign.Center,
-                                 opticalCentering = true
-                             )
-                         }
+                                .width(reserveWidthDp)
+                                .clip(RoundedCornerShape(0.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            AmountText(
+                                amountMinor = animatedAmount,
+                                modifier = Modifier.graphicsLayer(alpha = amountAlpha.value),
+                                style = amountStyle,
+                                format = moneyFmt,
+                                fillColor = Color.White,
+                                strokeColor = Color.Transparent,
+                                strokeWidth = 0.dp,
+                                textAlign = TextAlign.Center,
+                                verticalAlign = VerticalAlign.Center,
+                                opticalCentering = true
+                            )
+                        }
 
-                         Spacer(Modifier.height(amountBottomGap))
+                        Spacer(Modifier.height(amountBottomGap))
 
-                         BasicText(
-                             text = subtitle,
-                             style = TextStyle(
-                                 color = Color.White.copy(alpha = 0.74f),
-                                 fontFamily = MontserratBold,
-                                 fontSize = subtitleFont,
-                                 letterSpacing = subtitleFont * 0.03f,
-                             )
-                         )
+                        BasicText(
+                            text = subtitle,
+                            style = TextStyle(
+                                color = Color.White.copy(alpha = 0.74f),
+                                fontFamily = MontserratBold,
+                                fontSize = subtitleFont,
+                                letterSpacing = subtitleFont * 0.03f,
+                            )
+                        )
 
-                         Spacer(Modifier.height(subtitleBottomGap))
-                     }
-                 }
+                        Spacer(Modifier.height(subtitleBottomGap))
+                    }
+                }
 
                 // Bottom table block: keep position (bottom) and size as in normal.
                 Box(
@@ -1050,7 +988,7 @@ fun MainScreen(
                                 .graphicsLayer(
                                     scaleX = tablePulse.value * tableIdle.value,
                                     scaleY = tablePulse.value * tableIdle.value
-                                 ),
+                                ),
                             height = tableHeight,
                             labelTextStyle = labelStyle.copy(fontSize = 0.sp),
                             showDotsBetweenTables = false,
@@ -1174,21 +1112,21 @@ private fun computeBoxCenterInRootPx(
 private enum class JackpotTier { Ruby, Gold, Jade }
 
 private data class TierMotionSpec(
-     val gemIntroFrom: Float,
-     val gemIntroPeak: Float,
-     val gemIntroPeakMs: Int,
-     val gemIntroSettleMs: Int,
-     val counterIntroMs: Int,
-     val impactPulsePeak: Float,
-     val impactPulseUpMs: Int,
-     val impactPulseDownMs: Int,
-     val breatheAmp: Float,
-     val breathePeriodMs: Int,
-     val tablePulseAmp: Float,
-     val tablePulsePeriodMs: Int,
-     val idleParticles: Int,
-     val idleParticleSpeedPxPerSec: Float,
-     val idleParticleAlpha: Float,
+    val gemIntroFrom: Float,
+    val gemIntroPeak: Float,
+    val gemIntroPeakMs: Int,
+    val gemIntroSettleMs: Int,
+    val counterIntroMs: Int,
+    val impactPulsePeak: Float,
+    val impactPulseUpMs: Int,
+    val impactPulseDownMs: Int,
+    val breatheAmp: Float,
+    val breathePeriodMs: Int,
+    val tablePulseAmp: Float,
+    val tablePulsePeriodMs: Int,
+    val idleParticles: Int,
+    val idleParticleSpeedPxPerSec: Float,
+    val idleParticleAlpha: Float,
 )
 
 private fun tierForLevel(level: Int): JackpotTier = when (level) {

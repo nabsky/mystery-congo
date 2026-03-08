@@ -2,15 +2,15 @@ package com.zorindisplays.mystery.ui
 
 import androidx.compose.runtime.*
 import com.zorindisplays.mystery.model.DevicePrefs
-import com.zorindisplays.mystery.model.DeviceRole
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
-import com.zorindisplays.mystery.ui.screens.MainScreen
 import com.zorindisplays.mystery.model.MainViewModel
 import com.zorindisplays.mystery.model.DeviceConfig
 import com.zorindisplays.mystery.model.DataSourceProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.ViewModelProvider
+import com.zorindisplays.mystery.ui.screens.DisplayScreen
+import com.zorindisplays.mystery.ui.screens.TableScreen
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.CoroutineScope
@@ -96,24 +96,32 @@ fun RoleRouter() {
 
             // Re-keying ViewModel ensures we get a fresh instance
             val vm: MainViewModel = viewModel(key = "${role.name}|${savedHostUrl}|${tableId}", factory = factory)
-            DisposableEffect(tableId) {
-                // При смене tableId явно вызываем stop() для старого dataSource
-                onDispose {
-                    // Исправлено: вызываем stop() внутри coroutine
-                    scope.launch {
-                        vm.dataSource.stop()
+
+            when (role) {
+                ModelDeviceRole.TABLE -> TableScreen(
+                    viewModel = vm,
+                    tableId = tableId,
+                    onResetRole = {
+                        scope.launch { prefs.setRole(ModelDeviceRole.UNSET) }
                     }
-                }
+                )
+
+                ModelDeviceRole.DISPLAY -> DisplayScreen(
+                    viewModel = vm,
+                    onResetRole = {
+                        scope.launch { prefs.setRole(ModelDeviceRole.UNSET) }
+                    }
+                )
+
+                ModelDeviceRole.DEMO -> TableScreen(
+                    viewModel = vm,
+                    tableId = tableId,
+                    onResetRole = {
+                        scope.launch { prefs.setRole(ModelDeviceRole.UNSET) }
+                    }
+                )
+                else -> Unit
             }
-            MainScreen(
-                viewModel = vm,
-                tableId = tableId,
-                onResetRole = {
-                    scope.launch {
-                        prefs.setRole(ModelDeviceRole.UNSET)
-                    }
-                }
-            )
         }
     }
 }
