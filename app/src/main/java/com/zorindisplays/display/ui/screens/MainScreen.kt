@@ -302,6 +302,28 @@ fun MainScreen(
             }
         }
 
+        LaunchedEffect(demo.systemMode, demo.pendingWin) {
+            val pending = demo.pendingWin
+            if (demo.systemMode == DemoState.SystemMode.PAYOUT_PENDING && pending != null) {
+                if (win == WinPhase.None) {
+                    val level = levelFromJackpotId(pending.jackpotId)
+
+                    winJackpotLevel = level
+                    winJackpotAmountMinor = pending.winAmount
+                    payoutSelectedBox = null
+                    revealWinnerBox = true
+                    emu?.emulator?.setPaused(true)
+
+                    win = WinPhase.Takeover(
+                        level = level,
+                        table = pending.tableId,
+                        box = pending.boxId,
+                        amountWon = pending.winAmount
+                    )
+                }
+            }
+        }
+
         val h = maxHeight
         val overlayH = maxHeight
         val hPxLocal = hPx
