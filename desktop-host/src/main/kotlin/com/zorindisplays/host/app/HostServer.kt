@@ -1,6 +1,7 @@
 package com.zorindisplays.host.app
 
 import com.zorindisplays.host.admin.AdminDashboardRepository
+import com.zorindisplays.host.admin.AdminDevicesRepository
 import com.zorindisplays.host.admin.AdminHistoryRepository
 import com.zorindisplays.host.admin.AdminSettingsRepository
 import com.zorindisplays.host.admin.AdminSystemRepository
@@ -60,6 +61,7 @@ fun main() {
         tableCount = config.tableCount
     )
     val adminSystemRepository = AdminSystemRepository()
+    val adminDevicesRepository = AdminDevicesRepository()
 
     val snapshotProjection = SnapshotProjection()
 
@@ -84,7 +86,8 @@ fun main() {
             adminHistoryRepository = adminHistoryRepository,
             adminSettingsRepository = adminSettingsRepository,
             adminDashboardRepository = adminDashboardRepository,
-            adminSystemRepository = adminSystemRepository
+            adminSystemRepository = adminSystemRepository,
+            adminDevicesRepository = adminDevicesRepository
         )
     }.start(wait = true)
 }

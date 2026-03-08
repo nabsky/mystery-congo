@@ -100,6 +100,11 @@
             </button>
         </li>
         <li class="nav-item" role="presentation">
+            <button class="nav-link" id="devices-tab" data-bs-toggle="tab" data-bs-target="#devices-pane" type="button">
+                Devices
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
             <button class="nav-link" id="live-events-tab" data-bs-toggle="tab" data-bs-target="#live-events-pane" type="button">
                 Live Events
             </button>
@@ -131,8 +136,8 @@
                 <div class="col-12 col-md-3">
                     <div class="card shadow-sm">
                         <div class="card-body">
-                            <div class="text-muted small">Active Tables</div>
-                            <div class="fs-5 fw-semibold" id="dashboardActiveTables">-</div>
+                            <div class="text-muted small">Devices Online (Tables/Displays)</div>
+                            <div class="fs-5 fw-semibold" id="dashboardDevicesOnline">-</div>
                         </div>
                     </div>
                 </div>
@@ -152,6 +157,12 @@
                             <div class="text-muted small">Jackpot Hits Today</div>
                             <div class="fs-5 fw-semibold" id="dashboardHitsToday">-</div>
                         </div>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <div id="dashboardDisplayWarning" class="alert alert-danger d-none mb-0" role="alert">
+                        No display is online. Dealers may not see bet confirmation or jackpot takeover screens.
                     </div>
                 </div>
 
@@ -226,7 +237,7 @@
             </div>
         </div>
 
-        <div class="tab-pane fade show active" id="state-pane">
+        <div class="tab-pane fade" id="state-pane">
             <div class="card shadow-sm">
                 <div class="card-header">Current Snapshot</div>
                 <div class="card-body">
@@ -390,6 +401,37 @@
                             <th data-field="winAmount">Win Amount</th>
                             <th data-field="status">Status</th>
                             <th data-field="createdAt" data-formatter="tsFormatter">Created At</th>
+                        </tr>
+                        </thead>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="devices-pane">
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Connected Devices</span>
+                    <button id="refreshDevicesBtn" class="btn btn-sm btn-outline-primary">Refresh</button>
+                </div>
+                <div class="card-body">
+                    <table
+                            id="devicesTable"
+                            class="table table-striped"
+                            data-toggle="table"
+                            data-search="false"
+                            data-pagination="false">
+                        <thead>
+                        <tr>
+                            <th data-field="deviceId">Device ID</th>
+                            <th data-field="deviceType">Type</th>
+                            <th data-field="deviceName">Name</th>
+                            <th data-field="tableId">Table</th>
+                            <th data-field="appVersion">App Version</th>
+                            <th data-field="lastStateVersion">Last State</th>
+                            <th data-field="lastEventId">Last Event</th>
+                            <th data-field="lastSeenAt" data-formatter="tsFormatter">Last Seen</th>
+                            <th data-field="isOnline" data-formatter="yesNoBadge">Online</th>
                         </tr>
                         </thead>
                     </table>

@@ -314,7 +314,6 @@ async function refreshDashboard() {
     const dashboard = await fetchJson("/admin/dashboard");
 
     document.getElementById("dashboardSystemMode").textContent = dashboard.systemMode ?? "-";
-    document.getElementById("dashboardActiveTables").textContent = `${dashboard.activeTablesCount} / ${dashboard.totalTables}`;
     document.getElementById("dashboardBatchesToday").textContent = dashboard.totalBatchesToday ?? 0;
     document.getElementById("dashboardHitsToday").textContent = dashboard.totalHitsToday ?? 0;
 
@@ -365,17 +364,23 @@ async function refreshDashboard() {
 async function refreshDevices() {
     const summary = await fetchJson("/admin/devices");
 
-    document.getElementById("dashboardDisplaysOnline").textContent = summary.displaysOnline ?? 0;
-    document.getElementById("dashboardTablesOnline").textContent = summary.tablesOnline ?? 0;
-
-    const warningBox = document.getElementById("dashboardDisplayWarning");
-    if ((summary.displaysOnline ?? 0) === 0) {
-        warningBox.classList.remove("d-none");
-    } else {
-        warningBox.classList.add("d-none");
+    const devicesOnlineEl = document.getElementById("dashboardDevicesOnline");
+    if (devicesOnlineEl) {
+        const tablesOnline = summary.tablesOnline ?? 0;
+        const displaysOnline = summary.displaysOnline ?? 0;
+        devicesOnlineEl.textContent = `${tablesOnline} / ${displaysOnline}`;
     }
 
-    if (window.jQuery) {
+    const warningBox = document.getElementById("dashboardDisplayWarning");
+    if (warningBox) {
+        if ((summary.displaysOnline ?? 0) === 0) {
+            warningBox.classList.remove("d-none");
+        } else {
+            warningBox.classList.add("d-none");
+        }
+    }
+
+    if (window.jQuery && document.getElementById("devicesTable")) {
         window.jQuery("#devicesTable").bootstrapTable("load", summary.devices || []);
     }
 }
@@ -471,26 +476,6 @@ function openEditJackpotSettingsModal(row) {
     state.editJackpotModal.show();
 }
 
-function resetSettingsMessages() {
-    document.getElementById("settingsSaveError").classList.add("d-none");
-    document.getElementById("settingsSaveSuccess").classList.add("d-none");
-    document.getElementById("settingsSaveError").textContent = "";
-}
-
-function openEditJackpotSettingsModal(row) {
-    resetSettingsMessages();
-
-    document.getElementById("settingsJackpotId").value = row.jackpotId;
-    document.getElementById("settingsJackpotIdReadonly").value = row.jackpotId;
-    document.getElementById("settingsResetAmount").value = row.resetAmount;
-    document.getElementById("settingsContributionPerBet").value = row.contributionPerBet;
-    document.getElementById("settingsHitFrequencyGames").value = row.hitFrequencyGames;
-    document.getElementById("settingsPriorityOrder").value = row.priorityOrder;
-    document.getElementById("settingsEnabled").checked = !!row.enabled;
-
-    state.editJackpotModal.show();
-}
-
 function initTables() {
     if (!window.jQuery) {
         console.warn("Bootstrap Table expects jQuery-style plugin bridge; table load fallback is limited.");
@@ -501,6 +486,7 @@ function initTables() {
     window.jQuery("#jackpotHitsTable").bootstrapTable({ data: [] });
     window.jQuery("#pendingWinsTable").bootstrapTable({ data: [] });
     window.jQuery("#jackpotSettingsTable").bootstrapTable({ data: [] });
+    window.jQuery("#devicesTable").bootstrapTable({ data: [] });
 }
 
 function setupFilters() {
@@ -540,6 +526,10 @@ function setupToolbar() {
 
     document.getElementById("refreshAllBtn").addEventListener("click", async () => {
         await refreshAll();
+    });
+
+    document.getElementById("refreshDevicesBtn")?.addEventListener("click", async () => {
+        await refreshDevices();
     });
 
     const autoBtn = document.getElementById("autoRefreshBtn");
