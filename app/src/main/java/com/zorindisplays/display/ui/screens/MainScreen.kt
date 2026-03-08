@@ -298,12 +298,22 @@ fun MainScreen(
                         confirmedBurst = mapOf(tId to boxes)
                         confirmToken = System.nanoTime()
                     }
+
+                    is DemoEvent.PendingWinReset -> {
+                        payoutSelectedBox = null
+                        win = WinPhase.None
+                        revealWinnerBox = false
+                        winJackpotLevel = null
+                        winJackpotAmountMinor = null
+                        emu?.emulator?.setPaused(false)
+                    }
                 }
             }
         }
 
         LaunchedEffect(demo.systemMode, demo.pendingWin) {
             val pending = demo.pendingWin
+
             if (demo.systemMode == DemoState.SystemMode.PAYOUT_PENDING && pending != null) {
                 if (win == WinPhase.None) {
                     val level = levelFromJackpotId(pending.jackpotId)
@@ -320,6 +330,15 @@ fun MainScreen(
                         box = pending.boxId,
                         amountWon = pending.winAmount
                     )
+                }
+            } else if (demo.systemMode == DemoState.SystemMode.ACCEPTING_BETS && pending == null) {
+                if (win is WinPhase.Takeover) {
+                    payoutSelectedBox = null
+                    win = WinPhase.None
+                    revealWinnerBox = false
+                    winJackpotLevel = null
+                    winJackpotAmountMinor = null
+                    emu?.emulator?.setPaused(false)
                 }
             }
         }

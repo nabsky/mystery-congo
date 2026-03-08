@@ -22,4 +22,6 @@ sealed class DemoEvent {
         val tableId: Int,
         val boxIds: Set<Int>
     ) : DemoEvent()
+
+    data object PendingWinReset : DemoEvent()
 }

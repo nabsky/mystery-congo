@@ -258,6 +258,16 @@ class TableDataSource(
                                     _isHostOnline.value = true
                                 }
 
+                                "PendingWinReset" -> {
+                                    _events.tryEmit(DemoEvent.PendingWinReset)
+
+                                    val snapshot: SnapshotResponse = client.get(snapshotUrl()).body()
+                                    _state.value = snapshot.state.toInternal()
+                                    lastEventId.set(maxOf(lastEventId.get(), snapshot.lastEventId))
+                                    lastSuccessfulSyncTime = System.currentTimeMillis()
+                                    _isHostOnline.value = true
+                                }
+
                                 else -> {
                                     Log.d("TableDataSource", "Ignoring unknown event type: ${event.type}")
                                 }

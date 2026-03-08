@@ -5,5 +5,6 @@ enum class SyncEventType {
     BetsConfirmed,
     JackpotHitDetected,
     PayoutSelectedBox,
-    PayoutConfirmed
+    PayoutConfirmed,
+    PendingWinReset
 }
