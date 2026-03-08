@@ -95,6 +95,16 @@ class TableDataSource(
         )
     }
 
+    private var lastSnapshotRefreshTime = 0L
+    private suspend fun refreshSnapshot() {
+        val snapshot: SnapshotResponse = client.get(snapshotUrl()).body()
+        _state.value = snapshot.state.toInternal()
+        lastEventId.set(maxOf(lastEventId.get(), snapshot.lastEventId))
+        lastSuccessfulSyncTime = System.currentTimeMillis()
+        _isHostOnline.value = true
+        lastSnapshotRefreshTime = System.currentTimeMillis()
+    }
+
     init {
         scope.launch {
             Log.d("TableDataSource", "Initializing connection to $baseUrl with tableId=$tableId")
@@ -111,6 +121,7 @@ class TableDataSource(
 
                 _state.value = snapshot.state.toInternal()
                 lastEventId.set(snapshot.lastEventId)
+                lastSnapshotRefreshTime = System.currentTimeMillis()
 
                 _connectionState.value = ConnectionState.CONNECTED
                 lastSuccessfulSyncTime = System.currentTimeMillis()
@@ -251,6 +262,11 @@ class TableDataSource(
                                     Log.d("TableDataSource", "Ignoring unknown event type: ${event.type}")
                                 }
                             }
+                        }
+                    } else {
+                        val nowMs = System.currentTimeMillis()
+                        if (nowMs - lastSnapshotRefreshTime >= 1500L) {
+                            refreshSnapshot()
                         }
                     }
 
