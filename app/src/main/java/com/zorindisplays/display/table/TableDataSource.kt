@@ -240,7 +240,7 @@ class TableDataSource(
                                         )
                                     )
 
-                                    val snapshot: SnapshotResponse = client.get("$baseUrl/snapshot?tableId=$tableId").body()
+                                    val snapshot: SnapshotResponse = client.get(snapshotUrl()).body()
                                     _state.value = snapshot.state.toInternal()
                                     lastEventId.set(maxOf(lastEventId.get(), snapshot.lastEventId))
                                     lastSuccessfulSyncTime = System.currentTimeMillis()
