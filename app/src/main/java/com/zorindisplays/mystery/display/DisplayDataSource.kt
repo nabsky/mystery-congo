@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 class DisplayDataSource(
     baseUrl: String,
+    deviceId: String,
     scope: CoroutineScope
 ) : JackpotStateDataSource {
 
@@ -15,6 +16,7 @@ class DisplayDataSource(
         TableDataSource(
             baseUrl = baseUrl,
             tableId = -1,
+            deviceId = deviceId,
             scope = scope
         )
 

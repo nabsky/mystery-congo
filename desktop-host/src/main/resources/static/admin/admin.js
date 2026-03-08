@@ -362,6 +362,24 @@ async function refreshDashboard() {
     `).join("");
 }
 
+async function refreshDevices() {
+    const summary = await fetchJson("/admin/devices");
+
+    document.getElementById("dashboardDisplaysOnline").textContent = summary.displaysOnline ?? 0;
+    document.getElementById("dashboardTablesOnline").textContent = summary.tablesOnline ?? 0;
+
+    const warningBox = document.getElementById("dashboardDisplayWarning");
+    if ((summary.displaysOnline ?? 0) === 0) {
+        warningBox.classList.remove("d-none");
+    } else {
+        warningBox.classList.add("d-none");
+    }
+
+    if (window.jQuery) {
+        window.jQuery("#devicesTable").bootstrapTable("load", summary.devices || []);
+    }
+}
+
 async function refreshAll() {
     try {
         await Promise.all([
@@ -371,6 +389,7 @@ async function refreshAll() {
             refreshJackpotHits(),
             refreshPendingWins(),
             refreshJackpotSettings(),
+            refreshDevices(),
         ]);
     } catch (e) {
         console.error(e);
@@ -608,6 +627,7 @@ function connectWs() {
                     refreshJackpotHits(),
                     refreshPendingWins(),
                     refreshJackpotSettings(),
+                    refreshDevices(),
                 ]);
             }
         } catch (e) {

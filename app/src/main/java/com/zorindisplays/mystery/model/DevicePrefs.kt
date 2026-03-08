@@ -17,7 +17,8 @@ const val DEFAULT_HOST_ADDRESS = "http://192.168.1.100:8080"
 data class DeviceConfig(
     val role: DeviceRole = DeviceRole.UNSET,
     val hostUrl: String = "",
-    val tableId: Int = 0
+    val tableId: Int = 0,
+    val deviceId: String = ""
 )
 
 object DevicePrefsKeys {

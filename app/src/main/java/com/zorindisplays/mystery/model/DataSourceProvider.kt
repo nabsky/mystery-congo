@@ -35,6 +35,7 @@ class DataSourceProvider(
 
                 DisplayDataSource(
                     baseUrl = url,
+                    deviceId = config.deviceId,
                     scope = scope
                 )
             }
@@ -53,6 +54,7 @@ class DataSourceProvider(
                 TableDataSource(
                     baseUrl = url,
                     tableId = config.tableId,
+                    deviceId = config.deviceId,
                     scope = scope
                 )
             }

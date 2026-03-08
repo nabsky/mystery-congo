@@ -1,6 +1,9 @@
 package com.zorindisplays.mystery.table
 
+import android.annotation.SuppressLint
 import android.util.Log
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import com.zorindisplays.mystery.model.JackpotEvent
 import com.zorindisplays.mystery.model.JackpotState
 import com.zorindisplays.mystery.model.JackpotTableControlDataSource
@@ -39,9 +42,13 @@ import kotlin.random.Random
 class TableDataSource(
     private val baseUrl: String,
     private val tableId: Int,
+    private val deviceId: String,
     private val scope: CoroutineScope,
     private val pollIntervalMs: Long = 500
 ) : JackpotTableControlDataSource {
+
+    private var heartbeatJob: Job? = null
+    private var lastKnownStateVersion: Long = 0L
 
     private val _state = MutableStateFlow(JackpotState())
     override val state: StateFlow<JackpotState> get() = _state.asStateFlow()
@@ -71,10 +78,20 @@ class TableDataSource(
     private fun apiBoxId(internalBoxId: Int): Int = internalBoxId + 1
     private val apiTableId: Int get() = tableId + 1
 
-    private fun healthUrl(): String = "$baseUrl/health?tableId=$apiTableId"
-    private fun snapshotUrl(): String = "$baseUrl/snapshot?tableId=$apiTableId"
+    private fun healthUrl(): String =
+        if (tableId >= 0) "$baseUrl/health?tableId=${apiTableId(tableId)}"
+        else "$baseUrl/health"
+
+    private fun snapshotUrl(): String =
+        if (tableId >= 0) "$baseUrl/snapshot?tableId=${apiTableId(tableId)}"
+        else "$baseUrl/snapshot"
+
     private fun syncUrl(afterEventId: Long): String =
-        "$baseUrl/sync?afterEventId=$afterEventId&tableId=$apiTableId"
+        if (tableId >= 0) {
+            "$baseUrl/sync?afterEventId=$afterEventId&tableId=${apiTableId(tableId)}"
+        } else {
+            "$baseUrl/sync?afterEventId=$afterEventId"
+        }
 
     private fun internalTableId(apiTableId: Int): Int = apiTableId - 1
     private fun internalBoxId(apiBoxId: Int): Int = apiBoxId - 1
@@ -99,10 +116,37 @@ class TableDataSource(
     private suspend fun refreshSnapshot() {
         val snapshot: SnapshotResponse = client.get(snapshotUrl()).body()
         _state.value = snapshot.state.toInternal()
-        lastEventId.set(maxOf(lastEventId.get(), snapshot.lastEventId))
-        lastSuccessfulSyncTime = System.currentTimeMillis()
         _isHostOnline.value = true
+        lastSuccessfulSyncTime = System.currentTimeMillis()
         lastSnapshotRefreshTime = System.currentTimeMillis()
+        lastKnownStateVersion = snapshot.stateVersion
+        lastEventId.set(maxOf(lastEventId.get(), snapshot.lastEventId))
+    }
+
+    private fun startHeartbeat() {
+        heartbeatJob?.cancel()
+        heartbeatJob = scope.launch {
+            while (isActive) {
+                delay(3000)
+
+                runCatching {
+                    client.post("$baseUrl/device/heartbeat") {
+                        contentType(ContentType.Application.Json)
+                        setBody(
+                            DeviceHeartbeatRequest(
+                                deviceId = deviceId,
+                                deviceType = if (tableId >= 0) "TABLE" else "DISPLAY",
+                                deviceName = null,
+                                tableId = if (tableId >= 0) apiTableId(tableId) else null,
+                                appVersion = null,
+                                lastStateVersion = lastKnownStateVersion,
+                                lastEventId = lastEventId.get()
+                            )
+                        )
+                    }
+                }
+            }
+        }
     }
 
     init {
@@ -120,11 +164,13 @@ class TableDataSource(
                 Log.d("TableDataSource", "Snapshot received: ${snapshot.state}, lastEventId=${snapshot.lastEventId}, stateVersion=${snapshot.stateVersion}")
 
                 _state.value = snapshot.state.toInternal()
-                lastEventId.set(snapshot.lastEventId)
-                lastSnapshotRefreshTime = System.currentTimeMillis()
-
                 _connectionState.value = ConnectionState.CONNECTED
+
+                lastSnapshotRefreshTime = System.currentTimeMillis()
                 lastSuccessfulSyncTime = System.currentTimeMillis()
+                lastKnownStateVersion = snapshot.stateVersion
+                lastEventId.set(maxOf(lastEventId.get(), snapshot.lastEventId))
+
                 _isHostOnline.value = true
             } catch (e: Exception) {
                 Log.e("TableDataSource", "Initialization failed", e)
@@ -133,6 +179,7 @@ class TableDataSource(
             }
 
             startPolling()
+            startHeartbeat()
         }
     }
 
@@ -298,6 +345,7 @@ class TableDataSource(
 
     override suspend fun stop() {
         Log.d("TableDataSource", "stop() called for tableId=$tableId")
+        heartbeatJob?.cancel()
         pollingJob?.cancel()
         client.close()
     }
@@ -374,6 +422,7 @@ class TableDataSource(
         }
     }
 
+    @SuppressLint("UnsafeOptInUsageError")
     @Serializable
     data class SnapshotResponse(
         val state: JackpotState,
@@ -381,6 +430,7 @@ class TableDataSource(
         val lastEventId: Long = 0
     )
 
+    @SuppressLint("UnsafeOptInUsageError")
     @Serializable
     data class SyncResponse(
         val stateVersion: Long = 0,
@@ -388,6 +438,7 @@ class TableDataSource(
         val events: List<SyncEvent> = emptyList()
     )
 
+    @SuppressLint("UnsafeOptInUsageError")
     @Serializable
     data class SyncEvent(
         val eventId: Long,
@@ -396,15 +447,37 @@ class TableDataSource(
         val payloadJson: String
     )
 
+    @SuppressLint("UnsafeOptInUsageError")
     @Serializable
     data class ToggleRequest(val tableId: Int, val boxId: Int)
 
+    @SuppressLint("UnsafeOptInUsageError")
     @Serializable
     data class ConfirmRequest(val tableId: Int)
 
+    @SuppressLint("UnsafeOptInUsageError")
     @Serializable
     data class SelectPayoutBoxRequest(val tableId: Int, val boxId: Int)
 
+    @SuppressLint("UnsafeOptInUsageError")
     @Serializable
     data class ConfirmPayoutRequest(val tableId: Int)
+
+    @SuppressLint("UnsafeOptInUsageError")
+    @Serializable
+    data class DeviceHeartbeatRequest(
+        val deviceId: String,
+        val deviceType: String,
+        val deviceName: String? = null,
+        val tableId: Int? = null,
+        val appVersion: String? = null,
+        val lastStateVersion: Long,
+        val lastEventId: Long
+    )
+
+    @SuppressLint("UnsafeOptInUsageError")
+    @Serializable
+    data class DeviceHeartbeatResponse(
+        val ok: Boolean
+    )
 }

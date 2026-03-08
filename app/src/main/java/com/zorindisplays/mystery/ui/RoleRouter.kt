@@ -31,9 +31,14 @@ fun RoleRouter() {
 
     val prefs = remember { DevicePrefs(context) }
 
+    LaunchedEffect(Unit) {
+        prefs.ensureDeviceId()
+    }
+
     val role by prefs.roleFlow.collectAsState(initial = ModelDeviceRole.UNSET)
     val savedHostUrl by prefs.hostAddressFlow.collectAsState(initial = DEFAULT_HOST_ADDRESS)
     val tableId by prefs.tableIdFlow.collectAsState(initial = 0)
+    val deviceId by prefs.deviceIdFlow.collectAsState(initial = "")
 
     var showDialog by remember { mutableStateOf(false) }
 
@@ -69,12 +74,13 @@ fun RoleRouter() {
         val config = DeviceConfig(
             role = role,
             hostUrl = savedHostUrl,
-            tableId = tableId
+            tableId = tableId,
+            deviceId = deviceId
         )
 
         // Create DataSource
         // We use a key to recreate the ViewModel if config changes
-        key(role, savedHostUrl, tableId) {
+        key(role, savedHostUrl, tableId, deviceId) {
             val factory = object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -84,7 +90,10 @@ fun RoleRouter() {
             }
 
             // Re-keying ViewModel ensures we get a fresh instance
-            val vm: MainViewModel = viewModel(key = "${role.name}|${savedHostUrl}|${tableId}", factory = factory)
+            val vm: MainViewModel = viewModel(
+                key = "${role.name}|${savedHostUrl}|${tableId}|${deviceId}",
+                factory = factory
+            )
 
             when (role) {
                 ModelDeviceRole.TABLE -> TableScreen(

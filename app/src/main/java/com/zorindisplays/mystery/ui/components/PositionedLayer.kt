@@ -1,3 +1,5 @@
+package com.zorindisplays.mystery.ui.components
+
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
