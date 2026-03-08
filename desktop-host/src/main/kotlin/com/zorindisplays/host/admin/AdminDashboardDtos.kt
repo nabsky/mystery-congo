@@ -44,6 +44,7 @@ data class AdminDashboardLatestBatchDto(
     val id: Long,
     val tableId: Int,
     val confirmedAt: Long,
+    val boxIds: List<Int>,
     val result: String?,
     val winningJackpotId: String?,
     val winningBoxId: Int?

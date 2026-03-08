@@ -1,6 +1,7 @@
 package com.zorindisplays.host.admin
 
 import com.zorindisplays.host.infrastructure.db.dbQuery
+import com.zorindisplays.host.infrastructure.db.tables.BetBatchItemTable
 import com.zorindisplays.host.infrastructure.db.tables.BetBatchTable
 import com.zorindisplays.host.infrastructure.db.tables.JackpotHitTable
 import com.zorindisplays.host.infrastructure.db.tables.JackpotStateTable
@@ -64,17 +65,36 @@ class AdminDashboardRepository(
                     )
                 }
 
-            val latestBatches = BetBatchTable.selectAll()
-                .orderBy(BetBatchTable.id to SortOrder.DESC)
+            val latestBatches = BetBatchTable
+                .selectAll()
+                .orderBy(BetBatchTable.confirmedAt, SortOrder.DESC)
                 .limit(10)
-                .map { row ->
+                .map { batchRow ->
+
+                    val batchId = batchRow[BetBatchTable.id]
+
+                    val items = BetBatchItemTable
+                        .selectAll()
+                        .where { BetBatchItemTable.betBatchId eq batchId }
+                        .orderBy(BetBatchItemTable.seqNo, SortOrder.ASC)
+                        .map { itemRow ->
+                            AdminBetBatchItemDto(
+                                id = itemRow[BetBatchItemTable.id],
+                                boxId = itemRow[BetBatchItemTable.boxId],
+                                seqNo = itemRow[BetBatchItemTable.seqNo],
+                                result = itemRow[BetBatchItemTable.result],
+                                betBatchId = batchId
+                            )
+                        }
+
                     AdminDashboardLatestBatchDto(
-                        id = row[BetBatchTable.id],
-                        tableId = row[BetBatchTable.tableId],
-                        confirmedAt = row[BetBatchTable.confirmedAt],
-                        result = row[BetBatchTable.result],
-                        winningJackpotId = row[BetBatchTable.winningJackpotId],
-                        winningBoxId = row[BetBatchTable.winningBoxId]
+                        id = batchId,
+                        tableId = batchRow[BetBatchTable.tableId],
+                        confirmedAt = batchRow[BetBatchTable.confirmedAt],
+                        boxIds = items.map { it.boxId },
+                        result = batchRow[BetBatchTable.result],
+                        winningJackpotId = batchRow[BetBatchTable.winningJackpotId],
+                        winningBoxId = batchRow[BetBatchTable.winningBoxId],
                     )
                 }
 

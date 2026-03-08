@@ -399,6 +399,7 @@ async function refreshDashboard() {
             <td class="mono">${batch.id}</td>
             <td>${batch.tableId}</td>
             <td>${tsFormatter(batch.confirmedAt)}</td>
+            <td class="mono">${(batch.boxIds || []).join(", ") || "-"}</td>
             <td>${escapeHtml(batch.result ?? "")}</td>
             <td>${escapeHtml(batch.winningJackpotId ?? "-")}</td>
             <td>${batch.winningBoxId ?? "-"}</td>
