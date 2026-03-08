@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -32,6 +33,7 @@ import com.nabsky.mystery.component.TableRowView
 import com.nabsky.mystery.component.TableStatesLike
 import com.nabsky.mystery.component.TableViewColors
 import com.zorindisplays.mystery.R
+import com.zorindisplays.mystery.audio.SoundManager
 import com.zorindisplays.mystery.model.JackpotEvent
 import com.zorindisplays.mystery.model.JackpotState
 import com.zorindisplays.mystery.ui.components.*
@@ -85,6 +87,12 @@ fun MainSceneScreen(
     inputModifier: Modifier = Modifier,
     onResetRole: () -> Unit
 ){
+    val context = LocalContext.current
+
+    val soundManager = remember(context) {
+        SoundManager(context)
+    }
+
     val dataSource = viewModel.dataSource
 
     val demo: JackpotState by dataSource.state.collectAsState()
@@ -103,6 +111,13 @@ fun MainSceneScreen(
         dataSource.start(uiScope)
         onDispose { uiScope.launch { dataSource.stop() } }
     }
+
+    DisposableEffect(soundManager) {
+        onDispose {
+            soundManager.release()
+        }
+    }
+
     val emu = dataSource as? EmulatorDataSource
 
     var win by remember { mutableStateOf<WinPhase>(WinPhase.None) }
@@ -177,6 +192,7 @@ fun MainSceneScreen(
                         emu?.emulator?.setPaused(true)
                         revealWinnerBox = false
                         win = WinPhase.Rain(level, table, box, e.winAmount)
+                        soundManager.playRain()
                         rain = RainRequest(target = rainTarget)
                         delay(1500)
                         rain = null
@@ -201,14 +217,16 @@ fun MainSceneScreen(
                             sourcesInRoot = listOf(rainTarget),
                             targetInRoot = winnerCenterInRoot
                         )
-
                         // ждём, пока основная масса монет долетит
-                        delay(coinBurstDurationMs + 220L)
+                        delay(800L)
+                        soundManager.playCoins()
+                        delay(coinBurstDurationMs - 800L)
                         winBurst = null
+
 
                         // (4) Reveal winner box: теперь подсвечиваем, даём зрителю осознать
                         revealWinnerBox = true
-                        delay(850)
+                        delay(4000)
 
                         // (5) Takeover
                         win = WinPhase.Takeover(level, table, box, e.winAmount)
@@ -773,6 +791,7 @@ fun MainSceneScreen(
                 titleAlpha.animateTo(0.90f, animationSpec = TweenSpec(durationMillis = 500, easing = FastOutSlowInEasing))
 
                 // 0.5–~: counter 0 -> final
+                soundManager.playCounter()
                 counterProgress.animateTo(1f, animationSpec = TweenSpec(durationMillis = spec.counterIntroMs, easing = FastOutSlowInEasing))
 
                 // размер суммы не меняем
@@ -1140,7 +1159,7 @@ private fun tierSpec(tier: JackpotTier): TierMotionSpec = when (tier) {
         gemIntroPeak = 1.15f,
         gemIntroPeakMs = 260,
         gemIntroSettleMs = 240,
-        counterIntroMs = 1250,
+        counterIntroMs = 2500,
         impactPulsePeak = 1.08f,
         impactPulseUpMs = 120,
         impactPulseDownMs = 160,
@@ -1158,7 +1177,7 @@ private fun tierSpec(tier: JackpotTier): TierMotionSpec = when (tier) {
         gemIntroPeak = 1.10f,
         gemIntroPeakMs = 280,
         gemIntroSettleMs = 260,
-        counterIntroMs = 1500,
+        counterIntroMs = 2500,
         impactPulsePeak = 1.06f,
         impactPulseUpMs = 120,
         impactPulseDownMs = 160,
@@ -1176,7 +1195,7 @@ private fun tierSpec(tier: JackpotTier): TierMotionSpec = when (tier) {
         gemIntroPeak = 1.08f,
         gemIntroPeakMs = 300,
         gemIntroSettleMs = 300,
-        counterIntroMs = 1750,
+        counterIntroMs = 2500,
         impactPulsePeak = 1.05f,
         impactPulseUpMs = 130,
         impactPulseDownMs = 170,
