@@ -183,6 +183,7 @@ fun MainSceneScreen(
             dataSource.events.collectLatest { e ->
                 when (e) {
                     is JackpotEvent.JackpotHit -> {
+                        soundManager.stopLoop()
                         val level = levelFromJackpotId(e.jackpotId)
                         val table = apiTableToUi0(e.tableId)
                         val box = apiBoxToUi0(e.boxId)
@@ -239,10 +240,12 @@ fun MainSceneScreen(
                         val bId = apiBoxToUi0(e.boxId)
                         if (cur is WinPhase.Takeover && cur.table == tId) {
                             payoutSelectedBox = tId to bId
+                            soundManager.stopLoop()
                         }
                     }
 
                     is JackpotEvent.DealerPayoutConfirmed -> {
+                        soundManager.stopLoop()
                         val cur = win
                         val tId = apiTableToUi0(e.tableId)
                         if (cur is WinPhase.Takeover && cur.table == tId) {
@@ -265,6 +268,7 @@ fun MainSceneScreen(
                     }
 
                     is JackpotEvent.PendingWinReset -> {
+                        soundManager.stopLoop()
                         payoutSelectedBox = null
                         win = WinPhase.None
                         revealWinnerBox = false
@@ -794,6 +798,7 @@ fun MainSceneScreen(
                 soundManager.playCounter()
                 counterProgress.animateTo(1f, animationSpec = TweenSpec(durationMillis = spec.counterIntroMs, easing = FastOutSlowInEasing))
 
+                soundManager.startLoop()
                 // размер суммы не меняем
 
                 // 2.0s: table pulse
