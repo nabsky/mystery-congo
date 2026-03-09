@@ -60,6 +60,32 @@ body {
     flex: 0 0 auto;
 }
 
+.jackpot-card-meta {
+    font-size: 10px;
+    color: #9aa0a6;
+    margin-top: 2px;
+}
+
+.jackpot-card-meta {
+    font-size: 11px;
+    color: #6c757d;
+    margin-top: 2px;
+}
+
+.jackpot-warm {
+    color: #e0a800;
+}
+
+.jackpot-hot {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+.card.jackpot-hot-card {
+    border-color: #dc3545;
+    box-shadow: 0 0 10px rgba(220,53,69,0.4);
+}
+
 .dashboard-jackpot-row {
     display: flex;
     align-items: center;

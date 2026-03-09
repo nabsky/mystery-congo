@@ -139,6 +139,29 @@ function setServerStatus(ok, text) {
     el.className = `small ${ok ? "status-ok" : "status-bad"}`;
 }
 
+function renderDraws(elementId, draws, hitFrequency) {
+    const el = document.getElementById(elementId)
+
+    if (draws == null) {
+        el.textContent = "-"
+        el.className = "jackpot-card-meta"
+        return
+    }
+
+    el.textContent = `Draws: ${draws}`
+    el.className = "jackpot-card-meta"
+
+    if (!hitFrequency) return
+
+    const ratio = draws / hitFrequency
+
+    if (ratio >= 1.5) {
+        el.classList.add("jackpot-hot")
+    } else if (ratio >= 1.0) {
+        el.classList.add("jackpot-warm")
+    }
+}
+
 function fillCards(snapshot) {
     document.getElementById("cardSystemMode").textContent = snapshot.systemMode ?? "-";
 
@@ -157,6 +180,33 @@ function fillCards(snapshot) {
         `GOLD ${formatDelta(snapshot.jackpotGrowth?.GOLD)}`.trim();
     document.getElementById("cardJadeLabel").textContent =
         `JADE ${formatDelta(snapshot.jackpotGrowth?.JADE)}`.trim();
+
+    document.getElementById("cardRubyDraws").textContent =
+        `Draws: ${snapshot.jackpots?.RUBY?.gamesSinceLastHit ?? "-"}`;
+
+    document.getElementById("cardGoldDraws").textContent =
+        `Draws: ${snapshot.jackpots?.GOLD?.gamesSinceLastHit ?? "-"}`;
+
+    document.getElementById("cardJadeDraws").textContent =
+        `Draws: ${snapshot.jackpots?.JADE?.gamesSinceLastHit ?? "-"}`;
+
+    renderDraws(
+        "cardRubyDraws",
+        snapshot.jackpots?.RUBY?.gamesSinceLastHit,
+        snapshot.jackpotSettings?.RUBY?.hitFrequencyGames
+    )
+
+    renderDraws(
+        "cardGoldDraws",
+        snapshot.jackpots?.GOLD?.gamesSinceLastHit,
+        snapshot.jackpotSettings?.GOLD?.hitFrequencyGames
+    )
+
+    renderDraws(
+        "cardJadeDraws",
+        snapshot.jackpots?.JADE?.gamesSinceLastHit,
+        snapshot.jackpotSettings?.JADE?.hitFrequencyGames
+    )
 }
 
 function fillTablesState(snapshot) {
