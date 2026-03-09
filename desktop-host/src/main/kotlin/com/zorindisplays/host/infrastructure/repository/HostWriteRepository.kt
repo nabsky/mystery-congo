@@ -235,15 +235,19 @@ class HostWriteRepository {
 
             var pendingWin: PendingWin? = null
 
-            activeLoop@ for (boxId in activeBoxes) {
-                jackpotConfigs.forEach { cfg ->
-                    val current = jackpotStates.getValue(cfg.jackpotId)
-                    jackpotStates[cfg.jackpotId] = current.copy(
-                        currentAmount = current.currentAmount + cfg.contributionPerBet,
-                        gamesSinceLastHit = current.gamesSinceLastHit + 1
-                    )
-                }
+// Phase 1: all confirmed bets contribute to all enabled jackpots
+            jackpotConfigs.forEach { cfg ->
+                val current = jackpotStates.getValue(cfg.jackpotId)
+                val totalContribution = cfg.contributionPerBet * activeBoxes.size.toLong()
 
+                jackpotStates[cfg.jackpotId] = current.copy(
+                    currentAmount = current.currentAmount + totalContribution,
+                    gamesSinceLastHit = current.gamesSinceLastHit + activeBoxes.size
+                )
+            }
+
+// Phase 2: each bet participates in the draw in order
+            activeLoop@ for (boxId in activeBoxes) {
                 for (cfg in jackpotConfigs) {
                     val roll = randomRoll(cfg.hitFrequencyGames)
                     if (roll == 0) {
