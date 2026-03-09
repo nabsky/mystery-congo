@@ -7,6 +7,18 @@ const state = {
     pendingSystemAction: null,
 };
 
+function formatMoney(v, currency = "") {
+    if (v == null) return "-";
+    const formatted = Number(v).toLocaleString("fr-FR");
+    return currency ? `${formatted} ${currency}` : formatted;
+}
+
+function formatDelta(v) {
+    if (v == null) return "";
+    if (v === 0) return "(+0)";
+    return `(+${Number(v).toLocaleString("fr-FR")})`;
+}
+
 function tsFormatter(value) {
     if (value === null || value === undefined) return "";
     const date = new Date(value);
@@ -134,9 +146,16 @@ function fillCards(snapshot) {
         : "-";
     document.getElementById("cardPendingWin").textContent = pending;
 
-    document.getElementById("cardRuby").textContent = snapshot.jackpots?.RUBY ?? "-";
-    document.getElementById("cardGold").textContent = snapshot.jackpots?.GOLD ?? "-";
-    document.getElementById("cardJade").textContent = snapshot.jackpots?.JADE ?? "-";
+    document.getElementById("cardRuby").textContent = formatMoney(snapshot.jackpots?.RUBY);
+    document.getElementById("cardGold").textContent = formatMoney(snapshot.jackpots?.GOLD);
+    document.getElementById("cardJade").textContent = formatMoney(snapshot.jackpots?.JADE);
+
+    document.getElementById("cardRubyLabel").textContent =
+        `RUBY ${formatDelta(snapshot.jackpotGrowth?.RUBY)}`.trim();
+    document.getElementById("cardGoldLabel").textContent =
+        `GOLD ${formatDelta(snapshot.jackpotGrowth?.GOLD)}`.trim();
+    document.getElementById("cardJadeLabel").textContent =
+        `JADE ${formatDelta(snapshot.jackpotGrowth?.JADE)}`.trim();
 }
 
 function fillTablesState(snapshot) {
@@ -362,17 +381,13 @@ async function refreshDashboard() {
     document.getElementById("dashboardBatchesToday").textContent = dashboard.totalBatchesToday ?? 0;
     document.getElementById("dashboardHitsToday").textContent = dashboard.totalHitsToday ?? 0;
 
-    document.getElementById("dashboardRuby").textContent = dashboard.jackpots?.RUBY ?? "-";
-    document.getElementById("dashboardGold").textContent = dashboard.jackpots?.GOLD ?? "-";
-    document.getElementById("dashboardJade").textContent = dashboard.jackpots?.JADE ?? "-";
-
     const pendingWinBox = document.getElementById("dashboardPendingWinBox");
     if (dashboard.pendingWin) {
         pendingWinBox.innerHTML = `
             <div class="mb-2"><strong>Jackpot:</strong> ${escapeHtml(dashboard.pendingWin.jackpotId)}</div>
             <div class="mb-2"><strong>Table:</strong> ${dashboard.pendingWin.tableId}</div>
             <div class="mb-2"><strong>Winning Box:</strong> ${dashboard.pendingWin.winningBoxId}</div>
-            <div class="mb-2"><strong>Amount:</strong> ${dashboard.pendingWin.winAmount}</div>
+            <div class="mb-2"><strong>Amount:</strong> ${formatMoney(dashboard.pendingWin.winAmount)}</div>
             <div><strong>Dealer Confirmed:</strong> ${yesNoBadge(dashboard.pendingWin.dealerConfirmed)}</div>
         `;
     } else {
@@ -385,7 +400,7 @@ async function refreshDashboard() {
             <div class="mb-2"><strong>Jackpot:</strong> ${escapeHtml(dashboard.latestHit.jackpotId)}</div>
             <div class="mb-2"><strong>Table:</strong> ${dashboard.latestHit.tableId}</div>
             <div class="mb-2"><strong>Trigger Box:</strong> ${dashboard.latestHit.triggerBoxId}</div>
-            <div class="mb-2"><strong>Amount:</strong> ${dashboard.latestHit.winAmount}</div>
+            <div class="mb-2"><strong>Amount:</strong> ${formatMoney(dashboard.latestHit.winAmount)}</div>
             <div class="mb-2"><strong>Status:</strong> ${escapeHtml(dashboard.latestHit.status)}</div>
             <div><strong>Hit At:</strong> ${tsFormatter(dashboard.latestHit.hitAt)}</div>
         `;
@@ -406,15 +421,17 @@ async function refreshDashboard() {
         </tr>
     `).join("");
 
-    const currency = dashboard.currencyCode ?? "";
-    document.getElementById("dashboardTotalInToday").textContent =
-        `${dashboard.totalInToday ?? 0} ${currency}`.trim();
-    document.getElementById("dashboardTotalOutToday").textContent =
-        `${dashboard.totalOutToday ?? 0} ${currency}`.trim();
-    document.getElementById("dashboardTotalInAllTime").textContent =
-        `${dashboard.totalInAllTime ?? 0} ${currency}`.trim();
-    document.getElementById("dashboardTotalOutAllTime").textContent =
-        `${dashboard.totalOutAllTime ?? 0} ${currency}`.trim();
+    document.getElementById("totalInToday").textContent =
+    formatMoney(dashboard.totalInToday);
+
+    document.getElementById("totalOutToday").textContent =
+    formatMoney(dashboard.totalOutToday);
+
+    document.getElementById("totalInAllTime").textContent =
+    formatMoney(dashboard.totalInAllTime);
+
+    document.getElementById("totalOutAllTime").textContent =
+    formatMoney(dashboard.totalOutAllTime);
 
     document.getElementById("dashboardLatestBatchesCount").textContent =
         (dashboard.latestBatches || []).length;

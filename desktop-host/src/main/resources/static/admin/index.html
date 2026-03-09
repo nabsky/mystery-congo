@@ -53,7 +53,7 @@
         <div class="col-12 col-md-2">
             <div class="card shadow-sm">
                 <div class="card-body">
-                    <div class="text-muted small">RUBY</div>
+                    <div class="text-muted small" id="cardRubyLabel">RUBY</div>
                     <div class="jackpot-card-value" id="cardRubyWrap">
                         <img src="/admin/ui/img/ruby_icon.png" alt="Ruby" class="jackpot-card-icon">
                         <span class="fs-5 fw-semibold" id="cardRuby">-</span>
@@ -64,7 +64,7 @@
         <div class="col-12 col-md-2">
             <div class="card shadow-sm">
                 <div class="card-body">
-                    <div class="text-muted small">GOLD</div>
+                    <div class="text-muted small" id="cardGoldLabel">GOLD</div>
                     <div class="jackpot-card-value" id="cardGoldWrap">
                         <img src="/admin/ui/img/gold_icon.png" alt="Gold" class="jackpot-card-icon">
                         <span class="fs-5 fw-semibold" id="cardGold">-</span>
@@ -75,7 +75,7 @@
         <div class="col-12 col-md-2">
             <div class="card shadow-sm">
                 <div class="card-body">
-                    <div class="text-muted small">JADE</div>
+                    <div class="text-muted small" id="cardJadeLabel">JADE</div>
                     <div class="jackpot-card-value" id="cardJadeWrap">
                         <img src="/admin/ui/img/jade_icon.png" alt="Jade" class="jackpot-card-icon">
                         <span class="fs-5 fw-semibold" id="cardJade">-</span>
@@ -198,61 +198,38 @@
 
                 <div class="col-12 col-lg-4">
                     <div class="card shadow-sm h-100">
-                        <div class="card-header">Current Jackpots</div>
+                        <div class="card-header">Turnover</div>
+
                         <div class="card-body">
-                            <div class="dashboard-jackpot-row mb-2">
-                                <img src="/admin/ui/img/ruby_icon.png" alt="Ruby" class="dashboard-jackpot-icon">
-                                <strong>RUBY:</strong>
-                                <span id="dashboardRuby">-</span>
+
+                            <div class="mb-3">
+                                <strong>Today</strong>
+                                <div class="d-flex justify-content-between">
+                                    <span>Total In</span>
+                                    <span id="totalInToday">-</span>
+                                </div>
+
+                                <div class="d-flex justify-content-between">
+                                    <span>Total Out</span>
+                                    <span id="totalOutToday">-</span>
+                                </div>
                             </div>
 
-                            <div class="dashboard-jackpot-row mb-2">
-                                <img src="/admin/ui/img/gold_icon.png" alt="Gold" class="dashboard-jackpot-icon">
-                                <strong>GOLD:</strong>
-                                <span id="dashboardGold">-</span>
+                            <hr>
+
+                            <div>
+                                <strong>All Time</strong>
+                                <div class="d-flex justify-content-between">
+                                    <span>Total In</span>
+                                    <span id="totalInAllTime">-</span>
+                                </div>
+
+                                <div class="d-flex justify-content-between">
+                                    <span>Total Out</span>
+                                    <span id="totalOutAllTime">-</span>
+                                </div>
                             </div>
 
-                            <div class="dashboard-jackpot-row">
-                                <img src="/admin/ui/img/jade_icon.png" alt="Jade" class="dashboard-jackpot-icon">
-                                <strong>JADE:</strong>
-                                <span id="dashboardJade">-</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-12 col-md-3">
-                    <div class="card shadow-sm">
-                        <div class="card-body">
-                            <div class="text-muted small">TOTAL IN TODAY</div>
-                            <div class="fs-5 fw-semibold" id="dashboardTotalInToday">-</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-12 col-md-3">
-                    <div class="card shadow-sm">
-                        <div class="card-body">
-                            <div class="text-muted small">TOTAL OUT TODAY</div>
-                            <div class="fs-5 fw-semibold" id="dashboardTotalOutToday">-</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-12 col-md-3">
-                    <div class="card shadow-sm">
-                        <div class="card-body">
-                            <div class="text-muted small">TOTAL IN ALL TIME</div>
-                            <div class="fs-5 fw-semibold" id="dashboardTotalInAllTime">-</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-12 col-md-3">
-                    <div class="card shadow-sm">
-                        <div class="card-body">
-                            <div class="text-muted small">TOTAL OUT ALL TIME</div>
-                            <div class="fs-5 fw-semibold" id="dashboardTotalOutAllTime">-</div>
                         </div>
                     </div>
                 </div>
