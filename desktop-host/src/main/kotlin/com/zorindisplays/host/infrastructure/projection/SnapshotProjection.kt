@@ -20,6 +20,8 @@ class SnapshotProjection {
             jackpots = state.jackpots
                 .mapKeys { (jackpotId, _) -> jackpotId.name }
                 .mapValues { (_, jackpotState) -> jackpotState.currentAmount },
+            jackpotGrowth = state.jackpotGrowth
+                .mapKeys { (jackpotId, _) -> jackpotId.name },
             systemMode = when (state.systemMode) {
                 SystemMode.ACCEPTING_BETS -> JackpotStateDto.SystemModeDto.ACCEPTING_BETS
                 SystemMode.PAYOUT_PENDING -> JackpotStateDto.SystemModeDto.PAYOUT_PENDING

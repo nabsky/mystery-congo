@@ -1,11 +1,13 @@
 package com.zorindisplays.host.api.dto
 
+import com.zorindisplays.host.domain.model.JackpotId
 import kotlinx.serialization.Serializable
 
 @Serializable
 data class JackpotStateDto(
     val tables: List<TableDto> = emptyList(),
     val jackpots: Map<String, Long> = emptyMap(),
+    val jackpotGrowth: Map<String, Long> = emptyMap(),
     val systemMode: SystemModeDto = SystemModeDto.ACCEPTING_BETS,
     val pendingWin: PendingWinDto? = null,
     val currencyCode: String,

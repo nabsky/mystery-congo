@@ -14,9 +14,10 @@ function formatMoney(v, currency = "") {
 }
 
 function formatDelta(v) {
-    if (v == null) return "";
-    if (v === 0) return "(+0)";
-    return `(+${Number(v).toLocaleString("fr-FR")})`;
+    if (v == null || v === 0) return "";
+
+    const sign = v > 0 ? "+" : "-";
+    return `(${sign}${Math.abs(Number(v)).toLocaleString("fr-FR")})`;
 }
 
 function tsFormatter(value) {
