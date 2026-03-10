@@ -1,56 +1,27 @@
 const state = {
     autoRefresh: true,
     autoRefreshHandle: null,
-    jackpotSettings: [],
     editJackpotModal: null,
-    systemActionConfirmModal: null,
-    pendingSystemAction: null,
+    jackpotSettings: [],
+    serverSettings: null
 };
 
+let ws = null;
+const liveEvents = [];
+const MAX_LIVE_EVENTS = 200;
+
 function formatMoney(v, currency = "") {
-    if (v == null) return "-";
+    if (v === null || v === undefined) return "-";
     const formatted = Number(v).toLocaleString("fr-FR");
     return currency ? `${formatted} ${currency}` : formatted;
 }
 
 function formatDelta(v) {
-    if (v == null || v === 0) return "";
-
+    if (v === null || v === undefined) return "";
+    if (v === 0) return "";
     const sign = v > 0 ? "+" : "-";
-    return `(${sign}${Math.abs(Number(v)).toLocaleString("fr-FR")})`;
-}
-
-function tsFormatter(value) {
-    if (value === null || value === undefined) return "";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return String(value);
-    return date.toLocaleString();
-}
-
-function boxIdsFormatter(value) {
-    if (!value || !Array.isArray(value) || !value.length) {
-        return "-";
-    }
-    return value.join(", ");
-}
-window.boxIdsFormatter = boxIdsFormatter;
-
-function formatMinorAmount(value, currencyCode = "") {
-    const minor = Number(value ?? 0);
-    const major = minor / 100;
-
-    const formatted = major.toLocaleString(undefined, {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    });
-
-    return currencyCode ? `${formatted} ${currencyCode}` : formatted;
-}
-
-function yesNoBadge(value) {
-    return value
-        ? '<span class="badge text-bg-success">YES</span>'
-        : '<span class="badge text-bg-secondary">NO</span>';
+    const formatted = Math.abs(Number(v)).toLocaleString("fr-FR");
+    return `(${sign}${formatted})`;
 }
 
 function escapeHtml(value) {
@@ -60,6 +31,30 @@ function escapeHtml(value) {
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
+}
+
+function tsFormatter(value) {
+    if (value === null || value === undefined) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleString();
+}
+
+function yesNoBadge(value) {
+    return value
+        ? '<span class="badge text-bg-success">YES</span>'
+        : '<span class="badge text-bg-secondary">NO</span>';
+}
+
+function enabledFormatter(value) {
+    return value
+        ? '<span class="badge text-bg-success">ENABLED</span>'
+        : '<span class="badge text-bg-secondary">DISABLED</span>';
+}
+
+function boxIdsFormatter(value) {
+    if (!Array.isArray(value) || !value.length) return "-";
+    return value.join(", ");
 }
 
 function betBatchDetailFormatter(index, row) {
@@ -94,35 +89,29 @@ function betBatchDetailFormatter(index, row) {
     `;
 }
 
-window.tsFormatter = tsFormatter;
-window.betBatchDetailFormatter = betBatchDetailFormatter;
-
-function enabledFormatter(value) {
-    return value
-        ? '<span class="badge text-bg-success">ENABLED</span>'
-        : '<span class="badge text-bg-secondary">DISABLED</span>';
-}
-
 function settingsActionsFormatter() {
     return `
-        <button class="btn btn-sm btn-outline-primary settings-action-btn edit-settings-btn" type="button">
+        <button class="btn btn-sm btn-outline-primary edit-settings-btn" type="button">
             Edit
         </button>
     `;
 }
 
+window.tsFormatter = tsFormatter;
+window.betBatchDetailFormatter = betBatchDetailFormatter;
 window.enabledFormatter = enabledFormatter;
 window.settingsActionsFormatter = settingsActionsFormatter;
+window.boxIdsFormatter = boxIdsFormatter;
 
 window.settingsActionEvents = {
-    'click .edit-settings-btn': function (e, value, row) {
+    "click .edit-settings-btn": function (e, value, row) {
         openEditJackpotSettingsModal(row);
     }
 };
 
 async function fetchJson(url) {
     const response = await fetch(url, {
-        headers: { "Accept": "application/json" }
+        headers: { Accept: "application/json" }
     });
 
     if (!response.ok) {
@@ -135,153 +124,167 @@ async function fetchJson(url) {
 
 function setServerStatus(ok, text) {
     const el = document.getElementById("serverStatusText");
+    if (!el) return;
     el.textContent = text;
     el.className = `small ${ok ? "status-ok" : "status-bad"}`;
 }
 
-function renderDraws(elementId, draws, hitFrequency) {
-    const el = document.getElementById(elementId)
-    if (draws == null) {
-        el.textContent = "-"
-        el.className = "jackpot-card-meta"
-        return
-    }
-    el.textContent = `Draws: ${draws}`
-    el.className = "jackpot-card-meta"
-
-    if (!hitFrequency) return
-
-    const ratio = draws / hitFrequency
-    if (ratio >= 1.5) {
-        el.classList.add("jackpot-hot")
-    } else if (ratio >= 1.0) {
-        el.classList.add("jackpot-warm")
-    }
-}
-
 function renderProbability(draws, frequency) {
-    if (!draws || !frequency) return "-"
-    const p = Math.min(1, draws / frequency)
-    return Math.round(p * 100) + "%"
+    if (draws == null || !frequency) return "-";
+    const probability = Math.min(1, draws / frequency);
+    return `${Math.round(probability * 100)}%`;
 }
 
 function renderExpectedHit(draws, frequency) {
-    if (!draws || !frequency) return "-"
-    const remaining = frequency - draws
-    if (remaining <= 0) return "any moment"
-    return "~" + remaining + " draws"
-}
-
-function renderContributionRate(rate) {
-    if (!rate) return "-"
-    return formatMoney(rate) + " / min"
+    if (draws == null || !frequency) return "-";
+    const remaining = frequency - draws;
+    if (remaining <= 0) return "any moment";
+    return `~${Number(remaining).toLocaleString("fr-FR")} draws`;
 }
 
 function renderJackpotProgress(elementId, draws, frequency) {
-    const el = document.getElementById(elementId)
-    if (!draws || !frequency) {
-        el.style.width = "0%"
-        return
+    const el = document.getElementById(elementId);
+    if (!el) return;
+
+    if (draws == null || !frequency) {
+        el.style.width = "0%";
+        el.classList.remove("jackpot-hot-bar");
+        return;
     }
-    const ratio = Math.min(1.5, draws / frequency)
-    el.style.width = Math.min(100, ratio * 100) + "%"
+
+    const ratio = draws / frequency;
+    const visibleRatio = Math.min(1, ratio);
+
+    el.style.width = `${visibleRatio * 100}%`;
+    el.classList.remove("jackpot-hot-bar");
+
     if (ratio >= 1.2) {
-        el.classList.add("jackpot-hot-bar")
+        el.classList.add("jackpot-hot-bar");
+    }
+}
+
+function renderSystemStatus(snapshot) {
+    const modeEl = document.getElementById("cardSystemMode");
+    const detailsEl = document.getElementById("cardSystemStatusDetails");
+    const cardEl = document.getElementById("systemStatusCard");
+    if (!modeEl || !detailsEl || !cardEl) return;
+
+    const currency = snapshot.currencyCode ?? "";
+    const pending = snapshot.pendingWin;
+
+    cardEl.classList.remove("ruby-glow", "gold-glow", "jade-glow");
+
+    if (!pending) {
+        modeEl.textContent = "ACCEPTING_BETS";
+        detailsEl.textContent = "No pending win";
+        return;
+    }
+
+    modeEl.textContent = "PENDING_WIN";
+    detailsEl.textContent =
+        `${pending.jackpotId} / T${pending.tableId} / B${pending.boxId} / ${formatMoney(pending.winAmount, currency)}`;
+
+    if (pending.jackpotId === "RUBY") cardEl.classList.add("ruby-glow");
+    if (pending.jackpotId === "GOLD") cardEl.classList.add("gold-glow");
+    if (pending.jackpotId === "JADE") cardEl.classList.add("jade-glow");
+}
+
+function renderJackpotCard(snapshot, key, ids) {
+    const info = snapshot.jackpots?.[key];
+    const growth = snapshot.jackpotGrowth?.[key];
+    const settings = snapshot.jackpotSettings?.[key];
+    const currency = snapshot.currencyCode ?? "";
+
+    const labelEl = document.getElementById(ids.label);
+    const valueEl = document.getElementById(ids.value);
+    const drawsEl = document.getElementById(ids.draws);
+    const probabilityEl = document.getElementById(ids.probability);
+    const expectedHitEl = document.getElementById(ids.expectedHit);
+    const containerEl = document.getElementById(ids.container);
+
+    if (labelEl) {
+        labelEl.textContent = `${key} ${formatDelta(growth)}`.trim();
+    }
+
+    if (valueEl) {
+        valueEl.textContent = formatMoney(info?.currentAmount, currency);
+    }
+
+    if (drawsEl) {
+        drawsEl.textContent = info?.gamesSinceLastHit != null
+            ? `${Number(info.gamesSinceLastHit).toLocaleString("fr-FR")}`
+            : "-";
+    }
+
+    if (probabilityEl) {
+        probabilityEl.textContent = renderProbability(
+            info?.gamesSinceLastHit,
+            settings?.hitFrequencyGames
+        );
+    }
+
+    if (expectedHitEl) {
+        expectedHitEl.textContent = renderExpectedHit(
+            info?.gamesSinceLastHit,
+            settings?.hitFrequencyGames
+        );
+    }
+
+    renderJackpotProgress(
+        ids.progress,
+        info?.gamesSinceLastHit,
+        settings?.hitFrequencyGames
+    );
+
+    if (containerEl) {
+        containerEl.classList.remove("ruby-glow", "gold-glow", "jade-glow");
+
+        if (snapshot.pendingWin?.jackpotId === key) {
+            if (key === "RUBY") containerEl.classList.add("ruby-glow");
+            if (key === "GOLD") containerEl.classList.add("gold-glow");
+            if (key === "JADE") containerEl.classList.add("jade-glow");
+        }
     }
 }
 
 function fillCards(snapshot) {
-    document.getElementById("cardSystemMode").textContent = snapshot.systemMode ?? "-";
+    renderSystemStatus(snapshot);
 
-    const pending = snapshot.pendingWin
-        ? `${snapshot.pendingWin.jackpotId} / T${snapshot.pendingWin.tableId} / B${snapshot.pendingWin.boxId}`
-        : "-";
-    document.getElementById("cardPendingWin").textContent = pending;
+    renderJackpotCard(snapshot, "RUBY", {
+        label: "cardRubyLabel",
+        value: "cardRuby",
+        draws: "cardRubyDraws",
+        probability: "rubyProbability",
+        expectedHit: "rubyExpectedHit",
+        progress: "rubyProgress",
+        container: "cardRubyContainer"
+    });
 
-    const currency = snapshot.currencyCode ?? "";
+    renderJackpotCard(snapshot, "GOLD", {
+        label: "cardGoldLabel",
+        value: "cardGold",
+        draws: "cardGoldDraws",
+        probability: "goldProbability",
+        expectedHit: "goldExpectedHit",
+        progress: "goldProgress",
+        container: "cardGoldContainer"
+    });
 
-    const ruby = snapshot.jackpots?.RUBY;
-    const gold = snapshot.jackpots?.GOLD;
-    const jade = snapshot.jackpots?.JADE;
-
-    const rubyGrowth = snapshot.jackpotGrowth?.RUBY;
-    const goldGrowth = snapshot.jackpotGrowth?.GOLD;
-    const jadeGrowth = snapshot.jackpotGrowth?.JADE;
-
-    const rubySettings = snapshot.jackpotSettings?.RUBY;
-    const goldSettings = snapshot.jackpotSettings?.GOLD;
-    const jadeSettings = snapshot.jackpotSettings?.JADE;
-
-    document.getElementById("cardRuby").textContent =
-        formatMoney(ruby?.currentAmount, currency);
-    document.getElementById("cardGold").textContent =
-        formatMoney(gold?.currentAmount, currency);
-    document.getElementById("cardJade").textContent =
-        formatMoney(jade?.currentAmount, currency);
-
-    document.getElementById("cardRubyLabel").textContent =
-        `RUBY ${formatDelta(rubyGrowth)}`.trim();
-    document.getElementById("cardGoldLabel").textContent =
-        `GOLD ${formatDelta(goldGrowth)}`.trim();
-    document.getElementById("cardJadeLabel").textContent =
-        `JADE ${formatDelta(jadeGrowth)}`.trim();
-
-    renderDraws(
-        "cardRubyDraws",
-        ruby?.gamesSinceLastHit,
-        rubySettings?.hitFrequencyGames
-    );
-    renderDraws(
-        "cardGoldDraws",
-        gold?.gamesSinceLastHit,
-        goldSettings?.hitFrequencyGames
-    );
-    renderDraws(
-        "cardJadeDraws",
-        jade?.gamesSinceLastHit,
-        jadeSettings?.hitFrequencyGames
-    );
-
-    renderJackpotProgress(
-        "rubyProgress",
-        ruby?.gamesSinceLastHit,
-        rubySettings?.hitFrequencyGames
-    );
-    renderJackpotProgress(
-        "goldProgress",
-        gold?.gamesSinceLastHit,
-        goldSettings?.hitFrequencyGames
-    );
-    renderJackpotProgress(
-        "jadeProgress",
-        jade?.gamesSinceLastHit,
-        jadeSettings?.hitFrequencyGames
-    );
-
-    document.getElementById("rubyProbability").textContent =
-        renderProbability(ruby?.gamesSinceLastHit, rubySettings?.hitFrequencyGames);
-    document.getElementById("goldProbability").textContent =
-        renderProbability(gold?.gamesSinceLastHit, goldSettings?.hitFrequencyGames);
-    document.getElementById("jadeProbability").textContent =
-        renderProbability(jade?.gamesSinceLastHit, jadeSettings?.hitFrequencyGames);
-
-    document.getElementById("rubyExpectedHit").textContent =
-        renderExpectedHit(ruby?.gamesSinceLastHit, rubySettings?.hitFrequencyGames);
-    document.getElementById("goldExpectedHit").textContent =
-        renderExpectedHit(gold?.gamesSinceLastHit, goldSettings?.hitFrequencyGames);
-    document.getElementById("jadeExpectedHit").textContent =
-        renderExpectedHit(jade?.gamesSinceLastHit, jadeSettings?.hitFrequencyGames);
-
-    document.getElementById("rubyContributionRate").textContent =
-        renderContributionRate(rubySettings?.contributionPerBet, currency);
-    document.getElementById("goldContributionRate").textContent =
-        renderContributionRate(goldSettings?.contributionPerBet, currency);
-    document.getElementById("jadeContributionRate").textContent =
-        renderContributionRate(jadeSettings?.contributionPerBet, currency);
+    renderJackpotCard(snapshot, "JADE", {
+        label: "cardJadeLabel",
+        value: "cardJade",
+        draws: "cardJadeDraws",
+        probability: "jadeProbability",
+        expectedHit: "jadeExpectedHit",
+        progress: "jadeProgress",
+        container: "cardJadeContainer"
+    });
 }
 
 function fillTablesState(snapshot) {
     const tbody = document.getElementById("tablesStateBody");
+    if (!tbody) return;
+
     tbody.innerHTML = "";
 
     (snapshot.tables || []).forEach(table => {
@@ -296,108 +299,48 @@ function fillTablesState(snapshot) {
     });
 }
 
-function showToast(message) {
-    const body = document.getElementById("adminToastBody");
-    body.textContent = message;
+function renderMiniTableStage(snapshot) {
+    const root = document.getElementById("miniTableStage");
+    if (!root) return;
 
-    const toastEl = document.getElementById("adminToast");
-    const toast = bootstrap.Toast.getOrCreateInstance(toastEl);
-    toast.show();
-}
+    const tables = snapshot.tables || [];
+    root.innerHTML = "";
 
-function systemActionLabel(action) {
-    switch (action) {
-        case "refresh":
-            return "Refresh Snapshot";
-        case "clear-active-boxes":
-            return "Clear Active Boxes";
-        case "clear-recent-boxes":
-            return "Clear Recent Boxes";
-        case "reset-pending-win":
-            return "Reset Pending Win";
-        default:
-            return action;
-    }
-}
+    tables.forEach((table, index) => {
+        const tableEl = document.createElement("div");
+        tableEl.className = "mini-table";
 
-function openSystemActionConfirm(action) {
-    state.pendingSystemAction = action;
+        const labelEl = document.createElement("div");
+        labelEl.className = "mini-table-label";
+        labelEl.textContent = table.tableId;
 
-    const label = systemActionLabel(action);
-    document.getElementById("systemActionConfirmText").textContent =
-        `Are you sure you want to execute "${label}"?`;
+        const gridEl = document.createElement("div");
+        gridEl.className = "mini-table-grid";
 
-    state.systemActionConfirmModal.show();
-}
+        const order = [7, 8, 9, 4, 5, 6, 1, 2, 3];
 
-async function executeSystemAction() {
-    const action = state.pendingSystemAction;
-    if (!action) return;
+        order.forEach(boxId => {
+            const boxEl = document.createElement("div");
+            boxEl.className = "mini-box";
 
-    const urlMap = {
-        "refresh": "/admin/system/refresh",
-        "clear-active-boxes": "/admin/system/clear-active-boxes",
-        "clear-recent-boxes": "/admin/system/clear-recent-boxes",
-        "reset-pending-win": "/admin/system/reset-pending-win"
-    };
+            if (table.isActive) boxEl.classList.add("mini-box-online");
+            if ((table.recentBoxes || []).includes(boxId)) boxEl.classList.add("mini-box-recent");
+            if ((table.activeBoxes || []).includes(boxId)) boxEl.classList.add("mini-box-active");
 
-    const url = urlMap[action];
-    if (!url) return;
-
-    const confirmBtn = document.getElementById("systemActionConfirmBtn");
-    confirmBtn.disabled = true;
-
-    try {
-        const response = await fetch(url, {
-            method: "POST",
-            headers: {
-                "Accept": "application/json"
-            }
+            gridEl.appendChild(boxEl);
         });
 
-        const text = await response.text();
-        let result;
-        try {
-            result = JSON.parse(text);
-        } catch {
-            result = { ok: response.ok, message: text };
+        tableEl.appendChild(labelEl);
+        tableEl.appendChild(gridEl);
+        root.appendChild(tableEl);
+
+        if (index < tables.length - 1) {
+            const dots = document.createElement("div");
+            dots.className = "mini-table-separator";
+            dots.innerHTML = `<span></span><span></span><span></span>`;
+            root.appendChild(dots);
         }
-
-        if (!response.ok) {
-            throw new Error(result.message || `HTTP ${response.status}`);
-        }
-
-        document.getElementById("systemActionResultBox").textContent =
-            JSON.stringify(result, null, 2);
-
-        state.systemActionConfirmModal.hide();
-        showToast(result.message || "Action completed");
-
-        await refreshAll();
-    } catch (e) {
-        document.getElementById("systemActionResultBox").textContent =
-            JSON.stringify({ ok: false, message: e.message || "Action failed" }, null, 2);
-
-        showToast(e.message || "Action failed");
-    } finally {
-        confirmBtn.disabled = false;
-        state.pendingSystemAction = null;
-    }
-}
-
-function setupSystemActionsUi() {
-    const modalElement = document.getElementById("systemActionConfirmModal");
-    state.systemActionConfirmModal = new bootstrap.Modal(modalElement);
-
-    document.querySelectorAll("[data-system-action]").forEach(btn => {
-        btn.addEventListener("click", () => {
-            const action = btn.getAttribute("data-system-action");
-            openSystemActionConfirm(action);
-        });
     });
-
-    document.getElementById("systemActionConfirmBtn")
-        .addEventListener("click", executeSystemAction);
 }
 
 async function refreshCurrentState() {
@@ -406,35 +349,41 @@ async function refreshCurrentState() {
         fetchJson("/snapshot")
     ]);
 
-    const snapshot = snapshotResponse.state;
+    const snapshot = snapshotResponse.state ?? snapshotResponse;
 
-    setServerStatus(true, `OK · stateVersion=${health.stateVersion} · lastEventId=${health.lastEventId}`);
+    setServerStatus(
+        true,
+        `OK · stateVersion=${health.stateVersion} · lastEventId=${health.lastEventId}`
+    );
 
     fillCards(snapshot);
     fillTablesState(snapshot);
-    document.getElementById("rawSnapshotBox").textContent = JSON.stringify(snapshotResponse, null, 2);
+    renderMiniTableStage(snapshot);
+
+    const raw = document.getElementById("rawSnapshotBox");
+    if (raw) raw.textContent = JSON.stringify(snapshotResponse, null, 2);
 }
 
 async function refreshBetBatches() {
     const params = new URLSearchParams();
-    const tableId = document.getElementById("betBatchesTableId").value.trim();
-    const result = document.getElementById("betBatchesResult").value.trim();
+    const tableId = document.getElementById("betBatchesTableId")?.value.trim() ?? "";
+    const result = document.getElementById("betBatchesResult")?.value.trim() ?? "";
 
     params.set("limit", "50");
     if (tableId) params.set("tableId", tableId);
     if (result) params.set("result", result);
 
     const data = await fetchJson(`/admin/bet-batches?${params.toString()}`);
-    window.jQuery
-        ? window.jQuery("#betBatchesTable").bootstrapTable("load", data)
-        : document.getElementById("betBatchesTable").setAttribute("data", JSON.stringify(data));
+    if (window.jQuery && document.getElementById("betBatchesTable")) {
+        window.jQuery("#betBatchesTable").bootstrapTable("load", data);
+    }
 }
 
 async function refreshJackpotHits() {
     const params = new URLSearchParams();
-    const tableId = document.getElementById("jackpotHitsTableId").value.trim();
-    const jackpotId = document.getElementById("jackpotHitsJackpotId").value.trim();
-    const status = document.getElementById("jackpotHitsStatus").value.trim();
+    const tableId = document.getElementById("jackpotHitsTableId")?.value.trim() ?? "";
+    const jackpotId = document.getElementById("jackpotHitsJackpotId")?.value.trim() ?? "";
+    const status = document.getElementById("jackpotHitsStatus")?.value.trim() ?? "";
 
     params.set("limit", "50");
     if (tableId) params.set("tableId", tableId);
@@ -442,221 +391,205 @@ async function refreshJackpotHits() {
     if (status) params.set("status", status);
 
     const data = await fetchJson(`/admin/jackpot-hits?${params.toString()}`);
-    window.jQuery
-        ? window.jQuery("#jackpotHitsTable").bootstrapTable("load", data)
-        : document.getElementById("jackpotHitsTable").setAttribute("data", JSON.stringify(data));
+    if (window.jQuery && document.getElementById("jackpotHitsTable")) {
+        window.jQuery("#jackpotHitsTable").bootstrapTable("load", data);
+    }
 }
 
 async function refreshPendingWins() {
     const params = new URLSearchParams();
-    const tableId = document.getElementById("pendingWinsTableId").value.trim();
-    const dealerConfirmed = document.getElementById("pendingWinsDealerConfirmed").value.trim();
+    const tableId = document.getElementById("pendingWinsTableId")?.value.trim() ?? "";
+    const dealerConfirmed = document.getElementById("pendingWinsDealerConfirmed")?.value.trim() ?? "";
 
     if (tableId) params.set("tableId", tableId);
     if (dealerConfirmed) params.set("dealerConfirmed", dealerConfirmed);
 
     const query = params.toString();
     const data = await fetchJson(`/admin/pending-wins${query ? `?${query}` : ""}`);
-    window.jQuery
-        ? window.jQuery("#pendingWinsTable").bootstrapTable("load", data)
-        : document.getElementById("pendingWinsTable").setAttribute("data", JSON.stringify(data));
+    if (window.jQuery && document.getElementById("pendingWinsTable")) {
+        window.jQuery("#pendingWinsTable").bootstrapTable("load", data);
+    }
 }
 
 async function refreshJackpotSettings() {
     const data = await fetchJson("/admin/settings/jackpots");
     state.jackpotSettings = data;
 
-    if (window.jQuery) {
+    if (window.jQuery && document.getElementById("jackpotSettingsTable")) {
         window.jQuery("#jackpotSettingsTable").bootstrapTable("load", data);
     }
+}
+
+async function refreshServerSettings() {
+    const data = await fetchJson("/admin/settings/server");
+    state.serverSettings = data;
+
+    const currencyEl = document.getElementById("serverCurrencyCode");
+    const baseBetEl = document.getElementById("serverBaseBetAmount");
+
+    if (currencyEl) currencyEl.value = data.currencyCode ?? "";
+    if (baseBetEl) baseBetEl.value = data.baseBetAmount ?? 0;
 }
 
 async function refreshDashboard() {
     const dashboard = await fetchJson("/admin/dashboard");
 
-    document.getElementById("dashboardSystemMode").textContent = dashboard.systemMode ?? "-";
-    const statusBadge = document.getElementById("systemStatusBadge");
-
-    if (statusBadge) {
-        const mode = dashboard.systemMode ?? "UNKNOWN";
-        statusBadge.textContent = mode;
-        statusBadge.classList.remove(
-            "bg-success",
-            "bg-warning",
-            "bg-danger",
-            "bg-secondary",
-            "badge-blink"
-        );
-        if (mode === "ACCEPTING_BETS") {
-            statusBadge.classList.add("bg-success");
-        } else if (mode === "PAYOUT") {
-            statusBadge.classList.add("bg-warning");
-        } else if (mode === "LOCKED") {
-            statusBadge.classList.add("bg-danger");
-        } else {
-            statusBadge.classList.add("bg-secondary");
-        }
-        if (dashboard.pendingWin) {
-            statusBadge.classList.add("badge-blink");
-        }
-    }
-    document.getElementById("dashboardBatchesToday").textContent = dashboard.totalBatchesToday ?? 0;
-    document.getElementById("dashboardHitsToday").textContent = dashboard.totalHitsToday ?? 0;
-
-    const pendingWinBox = document.getElementById("dashboardPendingWinBox");
-    if (dashboard.pendingWin) {
-        pendingWinBox.innerHTML = `
-            <div class="mb-2"><strong>Jackpot:</strong> ${escapeHtml(dashboard.pendingWin.jackpotId)}</div>
-            <div class="mb-2"><strong>Table:</strong> ${dashboard.pendingWin.tableId}</div>
-            <div class="mb-2"><strong>Winning Box:</strong> ${dashboard.pendingWin.winningBoxId}</div>
-            <div class="mb-2"><strong>Amount:</strong> ${formatMoney(dashboard.pendingWin.winAmount)}</div>
-            <div><strong>Dealer Confirmed:</strong> ${yesNoBadge(dashboard.pendingWin.dealerConfirmed)}</div>
-        `;
-    } else {
-        pendingWinBox.innerHTML = `<div class="text-muted">No pending win</div>`;
-    }
-
     const latestHitBox = document.getElementById("dashboardLatestHitBox");
-    if (dashboard.latestHit) {
-        latestHitBox.innerHTML = `
-            <div class="mb-2"><strong>Jackpot:</strong> ${escapeHtml(dashboard.latestHit.jackpotId)}</div>
-            <div class="mb-2"><strong>Table:</strong> ${dashboard.latestHit.tableId}</div>
-            <div class="mb-2"><strong>Trigger Box:</strong> ${dashboard.latestHit.triggerBoxId}</div>
-            <div class="mb-2"><strong>Amount:</strong> ${formatMoney(dashboard.latestHit.winAmount)}</div>
-            <div class="mb-2"><strong>Status:</strong> ${escapeHtml(dashboard.latestHit.status)}</div>
-            <div><strong>Hit At:</strong> ${tsFormatter(dashboard.latestHit.hitAt)}</div>
-        `;
-    } else {
-        latestHitBox.innerHTML = `<div class="text-muted">No hits yet</div>`;
+    if (latestHitBox) {
+        if (dashboard.latestHit) {
+            latestHitBox.innerHTML = `
+                <div class="mb-2"><strong>Jackpot:</strong> ${escapeHtml(dashboard.latestHit.jackpotId)}</div>
+                <div class="mb-2"><strong>Table:</strong> ${dashboard.latestHit.tableId}</div>
+                <div class="mb-2"><strong>Trigger Box:</strong> ${dashboard.latestHit.triggerBoxId}</div>
+                <div class="mb-2"><strong>Amount:</strong> ${formatMoney(dashboard.latestHit.winAmount, dashboard.currencyCode ?? "")}</div>
+                <div class="mb-2"><strong>Status:</strong> ${escapeHtml(dashboard.latestHit.status)}</div>
+                <div><strong>Hit At:</strong> ${tsFormatter(dashboard.latestHit.hitAt)}</div>
+            `;
+        } else {
+            latestHitBox.innerHTML = `<div class="text-muted">No hits yet</div>`;
+        }
     }
+
+    const betBatchesEl = document.getElementById("todayStatBetBatches");
+    const rubyHitsEl = document.getElementById("todayStatRubyHits");
+    const goldHitsEl = document.getElementById("todayStatGoldHits");
+    const jadeHitsEl = document.getElementById("todayStatJadeHits");
+
+    if (betBatchesEl) betBatchesEl.textContent = dashboard.totalBatchesToday ?? "-";
+    if (rubyHitsEl) rubyHitsEl.textContent = dashboard.rubyHitsToday ?? "-";
+    if (goldHitsEl) goldHitsEl.textContent = dashboard.goldHitsToday ?? "-";
+    if (jadeHitsEl) jadeHitsEl.textContent = dashboard.jadeHitsToday ?? "-";
 
     const latestBatchesBody = document.getElementById("dashboardLatestBatchesBody");
-    latestBatchesBody.innerHTML = (dashboard.latestBatches || []).map(batch => `
-        <tr>
-            <td class="mono">${batch.id}</td>
-            <td>${batch.tableId}</td>
-            <td>${tsFormatter(batch.confirmedAt)}</td>
-            <td class="mono">${(batch.boxIds || []).join(", ") || "-"}</td>
-            <td>${escapeHtml(batch.result ?? "")}</td>
-            <td>${escapeHtml(batch.winningJackpotId ?? "-")}</td>
-            <td>${batch.winningBoxId ?? "-"}</td>
-        </tr>
-    `).join("");
+    if (latestBatchesBody) {
+        latestBatchesBody.innerHTML = (dashboard.latestBatches || []).map(batch => `
+            <tr>
+                <td class="mono">${batch.id}</td>
+                <td>${batch.tableId}</td>
+                <td>${tsFormatter(batch.confirmedAt)}</td>
+                <td class="mono">${(batch.boxIds || []).join(", ") || "-"}</td>
+                <td>${escapeHtml(batch.result ?? "")}</td>
+                <td>${escapeHtml(batch.winningJackpotId ?? "-")}</td>
+                <td>${batch.winningBoxId ?? "-"}</td>
+            </tr>
+        `).join("");
+    }
 
-    document.getElementById("totalInToday").textContent =
-    formatMoney(dashboard.totalInToday);
+    const latestBatchesCount = document.getElementById("dashboardLatestBatchesCount");
+    if (latestBatchesCount) {
+        latestBatchesCount.textContent = (dashboard.latestBatches || []).length;
+    }
 
-    document.getElementById("totalOutToday").textContent =
-    formatMoney(dashboard.totalOutToday);
+    const turnoverInToday = document.getElementById("turnoverInToday");
+    const turnoverOutToday = document.getElementById("turnoverOutToday");
+    const turnoverInAllTime = document.getElementById("turnoverInAllTime");
+    const turnoverOutAllTime = document.getElementById("turnoverOutAllTime");
 
-    document.getElementById("totalInAllTime").textContent =
-    formatMoney(dashboard.totalInAllTime);
-
-    document.getElementById("totalOutAllTime").textContent =
-    formatMoney(dashboard.totalOutAllTime);
-
-    document.getElementById("dashboardLatestBatchesCount").textContent =
-        (dashboard.latestBatches || []).length;
+    if (turnoverInToday) turnoverInToday.textContent = formatMoney(dashboard.totalInToday, dashboard.currencyCode ?? "");
+    if (turnoverOutToday) turnoverOutToday.textContent = formatMoney(dashboard.totalOutToday, dashboard.currencyCode ?? "");
+    if (turnoverInAllTime) turnoverInAllTime.textContent = formatMoney(dashboard.totalInAllTime, dashboard.currencyCode ?? "");
+    if (turnoverOutAllTime) turnoverOutAllTime.textContent = formatMoney(dashboard.totalOutAllTime, dashboard.currencyCode ?? "");
 }
 
 async function refreshDevices() {
     const summary = await fetchJson("/admin/devices");
+    const devices = summary.devices || [];
 
-    const devicesOnlineEl = document.getElementById("dashboardDevicesOnline");
-    if (devicesOnlineEl) {
-        const tablesOnline = summary.tablesOnline ?? 0;
-        const displaysOnline = summary.displaysOnline ?? 0;
-        devicesOnlineEl.textContent = `T ${tablesOnline} / D ${displaysOnline}`;
+    const displays = devices.filter(d => d.deviceType === "DISPLAY" && d.isOnline);
+    const tables = devices.filter(d => d.deviceType === "TABLE" && d.isOnline);
+
+    const displaysOnlineEl = document.getElementById("dashboardDisplaysOnline");
+    const tablesOnlineEl = document.getElementById("dashboardTablesOnline");
+    if (displaysOnlineEl) displaysOnlineEl.textContent = displays.length;
+    if (tablesOnlineEl) tablesOnlineEl.textContent = tables.length;
+
+    const warn = document.getElementById("dashboardDisplayWarning");
+    if (warn) {
+        if (displays.length === 0) warn.classList.remove("d-none");
+        else warn.classList.add("d-none");
     }
 
-    const warningBox = document.getElementById("dashboardDisplayWarning");
-    if (warningBox) {
-        if ((summary.displaysOnline ?? 0) === 0) {
-            warningBox.classList.remove("d-none");
+    const healthBadge = document.getElementById("devicesHealthBadge");
+    if (healthBadge) {
+        const tablesOnline = summary.tablesOnline ?? tables.length;
+        const displaysOnline = summary.displaysOnline ?? displays.length;
+
+        healthBadge.textContent = `Displays: ${displaysOnline} Tables: ${tablesOnline}`;
+        healthBadge.classList.remove("bg-success", "bg-warning", "bg-danger", "bg-secondary");
+
+        if (displaysOnline === 0 || tablesOnline === 0) {
+            healthBadge.classList.add("bg-danger");
+        } else if (tablesOnline < 8) {
+            healthBadge.classList.add("bg-warning");
         } else {
-            warningBox.classList.add("d-none");
+            healthBadge.classList.add("bg-success");
         }
     }
 
     if (window.jQuery && document.getElementById("devicesTable")) {
-        window.jQuery("#devicesTable").bootstrapTable("load", summary.devices || []);
-    }
-
-    const healthBadge = document.getElementById("devicesHealthBadge");
-
-    if (healthBadge) {
-
-        const tablesOnline = summary.tablesOnline ?? 0;
-        const displaysOnline = summary.displaysOnline ?? 0;
-
-        healthBadge.textContent =
-            `Displays: ${displaysOnline}  Tables: ${tablesOnline}`;
-
-        healthBadge.classList.remove(
-            "bg-success",
-            "bg-warning",
-            "bg-danger",
-            "bg-secondary"
-        );
-
-        if (displaysOnline === 0 || tablesOnline === 0) {
-            healthBadge.classList.add("bg-danger");
-        }
-        else if (tablesOnline < 8) {
-            healthBadge.classList.add("bg-warning");
-        }
-        else {
-            healthBadge.classList.add("bg-success");
-        }
+        window.jQuery("#devicesTable").bootstrapTable("load", devices);
     }
 }
 
-async function refreshAll() {
-    try {
-        await Promise.all([
-            refreshDashboard(),
-            refreshCurrentState(),
-            refreshBetBatches(),
-            refreshJackpotHits(),
-            refreshPendingWins(),
-            refreshJackpotSettings(),
-            refreshDevices(),
-            refreshServerSettings(),
-        ]);
-    } catch (e) {
-        console.error(e);
-        setServerStatus(false, `ERROR · ${e.message}`);
+function resetSettingsMessages() {
+    const errorEl = document.getElementById("settingsSaveError");
+    const successEl = document.getElementById("settingsSaveSuccess");
+
+    if (errorEl) {
+        errorEl.classList.add("d-none");
+        errorEl.textContent = "";
     }
+    if (successEl) {
+        successEl.classList.add("d-none");
+    }
+}
+
+function openEditJackpotSettingsModal(row) {
+    resetSettingsMessages();
+
+    const ids = {
+        hidden: document.getElementById("settingsJackpotId"),
+        readonly: document.getElementById("settingsJackpotIdReadonly"),
+        resetAmount: document.getElementById("settingsResetAmount"),
+        contributionPerBet: document.getElementById("settingsContributionPerBet"),
+        hitFrequencyGames: document.getElementById("settingsHitFrequencyGames"),
+        priorityOrder: document.getElementById("settingsPriorityOrder"),
+        enabled: document.getElementById("settingsEnabled")
+    };
+
+    if (ids.hidden) ids.hidden.value = row.jackpotId;
+    if (ids.readonly) ids.readonly.value = row.jackpotId;
+    if (ids.resetAmount) ids.resetAmount.value = row.resetAmount;
+    if (ids.contributionPerBet) ids.contributionPerBet.value = row.contributionPerBet;
+    if (ids.hitFrequencyGames) ids.hitFrequencyGames.value = row.hitFrequencyGames;
+    if (ids.priorityOrder) ids.priorityOrder.value = row.priorityOrder;
+    if (ids.enabled) ids.enabled.checked = !!row.enabled;
+
+    state.editJackpotModal?.show();
 }
 
 async function saveJackpotSettings(event) {
     event.preventDefault();
     resetSettingsMessages();
 
-    const jackpotId = document.getElementById("settingsJackpotId").value;
-    const resetAmount = Number(document.getElementById("settingsResetAmount").value);
-    const contributionPerBet = Number(document.getElementById("settingsContributionPerBet").value);
-    const hitFrequencyGames = Number(document.getElementById("settingsHitFrequencyGames").value);
-    const priorityOrder = Number(document.getElementById("settingsPriorityOrder").value);
-    const enabled = document.getElementById("settingsEnabled").checked;
-
+    const jackpotId = document.getElementById("settingsJackpotId")?.value;
     const payload = {
-        resetAmount,
-        contributionPerBet,
-        hitFrequencyGames,
-        priorityOrder,
-        enabled
+        resetAmount: Number(document.getElementById("settingsResetAmount")?.value),
+        contributionPerBet: Number(document.getElementById("settingsContributionPerBet")?.value),
+        hitFrequencyGames: Number(document.getElementById("settingsHitFrequencyGames")?.value),
+        priorityOrder: Number(document.getElementById("settingsPriorityOrder")?.value),
+        enabled: !!document.getElementById("settingsEnabled")?.checked
     };
 
     const saveBtn = document.getElementById("saveJackpotSettingsBtn");
-    saveBtn.disabled = true;
+    if (saveBtn) saveBtn.disabled = true;
 
     try {
         const response = await fetch(`/admin/settings/jackpots/${encodeURIComponent(jackpotId)}`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "Accept": "application/json"
+                Accept: "application/json"
             },
             body: JSON.stringify(payload)
         });
@@ -666,84 +599,34 @@ async function saveJackpotSettings(event) {
             throw new Error(text || `HTTP ${response.status}`);
         }
 
-        document.getElementById("settingsSaveSuccess").classList.remove("d-none");
+        document.getElementById("settingsSaveSuccess")?.classList.remove("d-none");
 
         await refreshJackpotSettings();
         await refreshCurrentState();
 
-        setTimeout(() => {
-            state.editJackpotModal.hide();
-        }, 500);
+        setTimeout(() => state.editJackpotModal?.hide(), 400);
     } catch (e) {
         const errorEl = document.getElementById("settingsSaveError");
-        errorEl.textContent = e.message || "Failed to save settings";
-        errorEl.classList.remove("d-none");
+        if (errorEl) {
+            errorEl.textContent = e.message || "Failed to save settings";
+            errorEl.classList.remove("d-none");
+        }
     } finally {
-        saveBtn.disabled = false;
+        if (saveBtn) saveBtn.disabled = false;
     }
-}
-
-function resetSettingsMessages() {
-    document.getElementById("settingsSaveError").classList.add("d-none");
-    document.getElementById("settingsSaveSuccess").classList.add("d-none");
-    document.getElementById("settingsSaveError").textContent = "";
-}
-
-function openEditJackpotSettingsModal(row) {
-    resetSettingsMessages();
-
-    document.getElementById("settingsJackpotId").value = row.jackpotId;
-    document.getElementById("settingsJackpotIdReadonly").value = row.jackpotId;
-    document.getElementById("settingsResetAmount").value = row.resetAmount;
-    document.getElementById("settingsContributionPerBet").value = row.contributionPerBet;
-    document.getElementById("settingsHitFrequencyGames").value = row.hitFrequencyGames;
-    document.getElementById("settingsPriorityOrder").value = row.priorityOrder;
-    document.getElementById("settingsEnabled").checked = !!row.enabled;
-
-    state.editJackpotModal.show();
-}
-
-function initTables() {
-    if (!window.jQuery) {
-        console.warn("Bootstrap Table expects jQuery-style plugin bridge; table load fallback is limited.");
-        return;
-    }
-
-    window.jQuery("#betBatchesTable").bootstrapTable({ data: [] });
-    window.jQuery("#jackpotHitsTable").bootstrapTable({ data: [] });
-    window.jQuery("#pendingWinsTable").bootstrapTable({ data: [] });
-    window.jQuery("#jackpotSettingsTable").bootstrapTable({ data: [] });
-    window.jQuery("#devicesTable").bootstrapTable({ data: [] });
-}
-
-function setupFilters() {
-    document.getElementById("betBatchesFilterForm").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        await refreshBetBatches();
-    });
-
-    document.getElementById("jackpotHitsFilterForm").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        await refreshJackpotHits();
-    });
-
-    document.getElementById("pendingWinsFilterForm").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        await refreshPendingWins();
-    });
-}
-
-async function refreshServerSettings() {
-    const data = await fetchJson("/admin/settings/server");
-
-    document.getElementById("serverCurrencyCode").value = data.currencyCode ?? "";
-    document.getElementById("serverBaseBetAmount").value = data.baseBetAmount ?? 0;
 }
 
 function resetServerSettingsMessages() {
-    document.getElementById("serverSettingsSaveError").classList.add("d-none");
-    document.getElementById("serverSettingsSaveSuccess").classList.add("d-none");
-    document.getElementById("serverSettingsSaveError").textContent = "";
+    const errorEl = document.getElementById("serverSettingsSaveError");
+    const successEl = document.getElementById("serverSettingsSaveSuccess");
+
+    if (errorEl) {
+        errorEl.classList.add("d-none");
+        errorEl.textContent = "";
+    }
+    if (successEl) {
+        successEl.classList.add("d-none");
+    }
 }
 
 async function saveServerSettings(event) {
@@ -751,19 +634,19 @@ async function saveServerSettings(event) {
     resetServerSettingsMessages();
 
     const payload = {
-        currencyCode: document.getElementById("serverCurrencyCode").value.trim().toUpperCase(),
-        baseBetAmount: Number(document.getElementById("serverBaseBetAmount").value)
+        currencyCode: document.getElementById("serverCurrencyCode")?.value.trim().toUpperCase(),
+        baseBetAmount: Number(document.getElementById("serverBaseBetAmount")?.value)
     };
 
     const saveBtn = document.getElementById("saveServerSettingsBtn");
-    saveBtn.disabled = true;
+    if (saveBtn) saveBtn.disabled = true;
 
     try {
         const response = await fetch("/admin/settings/server", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "Accept": "application/json"
+                Accept: "application/json"
             },
             body: JSON.stringify(payload)
         });
@@ -773,89 +656,21 @@ async function saveServerSettings(event) {
             throw new Error(text || `HTTP ${response.status}`);
         }
 
-        document.getElementById("serverSettingsSaveSuccess").classList.remove("d-none");
+        document.getElementById("serverSettingsSaveSuccess")?.classList.remove("d-none");
 
         await refreshServerSettings();
-        await refreshDashboard();
         await refreshCurrentState();
+        await refreshDashboard();
     } catch (e) {
         const errorEl = document.getElementById("serverSettingsSaveError");
-        errorEl.textContent = e.message || "Failed to save server settings";
-        errorEl.classList.remove("d-none");
-    } finally {
-        saveBtn.disabled = false;
-    }
-}
-
-function setupSettingsUi() {
-    const modalElement = document.getElementById("editJackpotSettingsModal");
-    state.editJackpotModal = new bootstrap.Modal(modalElement);
-
-    document.getElementById("editJackpotSettingsForm")
-        .addEventListener("submit", saveJackpotSettings);
-
-    document.getElementById("refreshSettingsBtn")
-        .addEventListener("click", async () => {
-            await refreshJackpotSettings();
-        });
-
-    document.getElementById("serverSettingsForm")
-        .addEventListener("submit", saveServerSettings);
-
-    document.getElementById("refreshServerSettingsBtn")
-        .addEventListener("click", async () => {
-            await refreshServerSettings();
-        });
-}
-
-function setupToolbar() {
-    document.getElementById("refreshDashboardBtn")?.addEventListener("click", async () => {
-        await refreshDashboard();
-    });
-
-    document.getElementById("refreshAllBtn").addEventListener("click", async () => {
-        await refreshAll();
-    });
-
-    document.getElementById("refreshDevicesBtn")?.addEventListener("click", async () => {
-        await refreshDevices();
-    });
-
-    const autoBtn = document.getElementById("autoRefreshBtn");
-    autoBtn.addEventListener("click", () => {
-        state.autoRefresh = !state.autoRefresh;
-        autoBtn.textContent = `Auto: ${state.autoRefresh ? "ON" : "OFF"}`;
-
-        if (state.autoRefresh) {
-            startAutoRefresh();
-        } else {
-            stopAutoRefresh();
+        if (errorEl) {
+            errorEl.textContent = e.message || "Failed to save server settings";
+            errorEl.classList.remove("d-none");
         }
-    });
-
-    document.getElementById("clearLiveEventsBtn")?.addEventListener("click", () => {
-        liveEvents.length = 0;
-        document.getElementById("liveEventsBody").innerHTML = "";
-    });
-}
-
-function startAutoRefresh() {
-    stopAutoRefresh();
-    state.autoRefreshHandle = setInterval(() => {
-        refreshAll();
-    }, 3000);
-}
-
-function stopAutoRefresh() {
-    if (state.autoRefreshHandle) {
-        clearInterval(state.autoRefreshHandle);
-        state.autoRefreshHandle = null;
+    } finally {
+        if (saveBtn) saveBtn.disabled = false;
     }
 }
-
-let ws = null;
-const liveEvents = [];
-const MAX_LIVE_EVENTS = 200;
 
 function appendLiveEventRow(msg) {
     liveEvents.unshift(msg);
@@ -864,6 +679,8 @@ function appendLiveEventRow(msg) {
     }
 
     const tbody = document.getElementById("liveEventsBody");
+    if (!tbody) return;
+
     tbody.innerHTML = liveEvents.map(event => `
         <tr>
             <td class="mono">${event.eventId ?? ""}</td>
@@ -882,14 +699,12 @@ function connectWs() {
     ws = new WebSocket(url);
 
     ws.onopen = () => {
-        console.log("Admin WS connected");
         setServerStatus(true, "WS connected");
     };
 
     ws.onmessage = async (event) => {
         try {
             const msg = JSON.parse(event.data);
-            console.log("WS message", msg);
 
             if (msg.type === "connected" || msg.type === "pong") {
                 appendLiveEventRow(msg);
@@ -898,16 +713,7 @@ function connectWs() {
 
             if (msg.type === "event") {
                 appendLiveEventRow(msg);
-
-                await Promise.all([
-                    refreshDashboard(),
-                    refreshCurrentState(),
-                    refreshBetBatches(),
-                    refreshJackpotHits(),
-                    refreshPendingWins(),
-                    refreshJackpotSettings(),
-                    refreshDevices(),
-                ]);
+                await refreshAll();
             }
         } catch (e) {
             console.error("Failed to parse WS message", e);
@@ -915,7 +721,6 @@ function connectWs() {
     };
 
     ws.onclose = () => {
-        console.log("Admin WS closed");
         setServerStatus(false, "WS disconnected, reconnecting...");
         setTimeout(connectWs, 2000);
     };
@@ -925,12 +730,128 @@ function connectWs() {
     };
 }
 
+function initTables() {
+    if (!window.jQuery) return;
+
+    if (document.getElementById("betBatchesTable")) {
+        window.jQuery("#betBatchesTable").bootstrapTable({ data: [] });
+    }
+    if (document.getElementById("jackpotHitsTable")) {
+        window.jQuery("#jackpotHitsTable").bootstrapTable({ data: [] });
+    }
+    if (document.getElementById("pendingWinsTable")) {
+        window.jQuery("#pendingWinsTable").bootstrapTable({ data: [] });
+    }
+    if (document.getElementById("jackpotSettingsTable")) {
+        window.jQuery("#jackpotSettingsTable").bootstrapTable({ data: [] });
+    }
+    if (document.getElementById("devicesTable")) {
+        window.jQuery("#devicesTable").bootstrapTable({ data: [] });
+    }
+}
+
+function setupFilters() {
+    document.getElementById("betBatchesFilterForm")?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        await refreshBetBatches();
+    });
+
+    document.getElementById("jackpotHitsFilterForm")?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        await refreshJackpotHits();
+    });
+
+    document.getElementById("pendingWinsFilterForm")?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        await refreshPendingWins();
+    });
+}
+
+function setupSettingsUi() {
+    const modalElement = document.getElementById("editJackpotSettingsModal");
+    if (modalElement && window.bootstrap) {
+        state.editJackpotModal = new bootstrap.Modal(modalElement);
+    }
+
+    document.getElementById("editJackpotSettingsForm")
+        ?.addEventListener("submit", saveJackpotSettings);
+
+    document.getElementById("refreshSettingsBtn")
+        ?.addEventListener("click", refreshJackpotSettings);
+
+    document.getElementById("serverSettingsForm")
+        ?.addEventListener("submit", saveServerSettings);
+
+    document.getElementById("refreshServerSettingsBtn")
+        ?.addEventListener("click", refreshServerSettings);
+}
+
+function setupToolbar() {
+    document.getElementById("refreshDashboardBtn")
+        ?.addEventListener("click", refreshDashboard);
+
+    document.getElementById("refreshDevicesBtn")
+        ?.addEventListener("click", refreshDevices);
+
+    document.getElementById("refreshAllBtn")
+        ?.addEventListener("click", refreshAll);
+
+    const autoBtn = document.getElementById("autoRefreshBtn");
+    if (autoBtn) {
+        autoBtn.addEventListener("click", () => {
+            state.autoRefresh = !state.autoRefresh;
+            autoBtn.textContent = `Auto: ${state.autoRefresh ? "ON" : "OFF"}`;
+
+            if (state.autoRefresh) startAutoRefresh();
+            else stopAutoRefresh();
+        });
+    }
+
+    document.getElementById("clearLiveEventsBtn")
+        ?.addEventListener("click", () => {
+            liveEvents.length = 0;
+            const tbody = document.getElementById("liveEventsBody");
+            if (tbody) tbody.innerHTML = "";
+        });
+}
+
+function startAutoRefresh() {
+    stopAutoRefresh();
+    state.autoRefreshHandle = setInterval(() => {
+        refreshAll();
+    }, 3000);
+}
+
+function stopAutoRefresh() {
+    if (state.autoRefreshHandle) {
+        clearInterval(state.autoRefreshHandle);
+        state.autoRefreshHandle = null;
+    }
+}
+
+async function refreshAll() {
+    try {
+        await Promise.all([
+            refreshDashboard(),
+            refreshCurrentState(),
+            refreshBetBatches(),
+            refreshJackpotHits(),
+            refreshPendingWins(),
+            refreshJackpotSettings(),
+            refreshServerSettings(),
+            refreshDevices()
+        ]);
+    } catch (e) {
+        console.error(e);
+        setServerStatus(false, `ERROR · ${e.message}`);
+    }
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
     initTables();
     setupFilters();
     setupToolbar();
     setupSettingsUi();
-    setupSystemActionsUi();
     connectWs();
     await refreshAll();
     startAutoRefresh();

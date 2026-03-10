@@ -12,21 +12,23 @@
 <div class="container-fluid py-3">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div class="d-flex align-items-center gap-3">
-            <a href="/admin/ui/index.html">
-                <img src="/admin/ui/img/logo.png" class="admin-logo" alt="Mystery Jackpot">
-            </a>
+            <img src="/admin/ui/img/logo.png" class="admin-logo" alt="Mystery Jackpot">
+
             <div>
                 <h1 class="h3 mb-0">Mystery Jackpot Server</h1>
+
                 <div class="d-flex align-items-center gap-2 mt-1">
                     <span id="systemStatusBadge" class="badge bg-secondary">Unknown</span>
+
                     <span id="devicesHealthBadge" class="badge bg-secondary">
-                        Displays: -
-                        Tables: -
+                        Displays: - Tables: -
                     </span>
+
                     <span class="text-muted small" id="serverStatusText">Loading...</span>
                 </div>
             </div>
         </div>
+
         <div class="d-flex gap-2">
             <button id="refreshAllBtn" class="btn btn-primary btn-sm">Refresh</button>
             <button id="autoRefreshBtn" class="btn btn-outline-secondary btn-sm">Auto: ON</button>
@@ -34,37 +36,32 @@
     </div>
 
     <div class="row g-3 mb-3">
-        <div class="col-12 col-md-3">
-            <div class="card shadow-sm">
+        <div class="col-12 col-lg-3">
+            <div class="card shadow-sm h-100" id="systemStatusCard">
                 <div class="card-body">
-                    <div class="text-muted small">System Mode</div>
-                    <div class="fs-5 fw-semibold" id="cardSystemMode">-</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-12 col-md-3">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <div class="text-muted small">Pending Win</div>
-                    <div class="fs-5 fw-semibold" id="cardPendingWin">-</div>
+                    <div class="text-muted small mb-1">System Status</div>
+                    <div class="fs-4 fw-semibold" id="cardSystemMode">-</div>
+                    <div class="small mt-2" id="cardSystemStatusDetails">No pending win</div>
                 </div>
             </div>
         </div>
 
-        <div class="col-12 col-md-2">
-            <div class="card shadow-sm jackpot-card">
+        <div class="col-12 col-lg-3">
+            <div class="card shadow-sm h-100 jackpot-card" id="cardRubyContainer">
                 <div class="card-body">
                     <div class="jackpot-card-header">
-                        <span class="text-muted small" id="cardRubyLabel">RUBY</span>
-                        <span class="jackpot-draws" id="cardRubyDraws">Draws: -</span>
+                        <div class="text-muted small" id="cardRubyLabel">RUBY</div>
                     </div>
-                    <div class="jackpot-card-value">
-                        <img src="/admin/ui/img/ruby_icon.png" class="jackpot-card-icon">
+
+                    <div class="jackpot-card-value" id="cardRubyWrap">
+                        <img src="/admin/ui/img/ruby_icon.png" alt="Ruby" class="jackpot-card-icon">
                         <span class="fs-5 fw-semibold" id="cardRuby">-</span>
                     </div>
+
                     <div class="jackpot-progress">
                         <div class="jackpot-progress-bar" id="rubyProgress"></div>
                     </div>
+
                     <div class="jackpot-card-stats">
                         <div class="jackpot-stat">
                             <span>Probability</span>
@@ -75,28 +72,30 @@
                             <span id="rubyExpectedHit">-</span>
                         </div>
                         <div class="jackpot-stat">
-                            <span>Contribution</span>
-                            <span id="rubyContributionRate">-</span>
+                            <span>Draws since last hit</span>
+                            <span id="cardRubyDraws">-</span>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-12 col-md-2">
-            <div class="card shadow-sm jackpot-card">
+        <div class="col-12 col-lg-3">
+            <div class="card shadow-sm h-100 jackpot-card" id="cardGoldContainer">
                 <div class="card-body">
                     <div class="jackpot-card-header">
-                        <span class="text-muted small" id="cardGoldLabel">GOLD</span>
-                        <span class="jackpot-draws" id="cardGoldDraws">Draws: -</span>
+                        <div class="text-muted small" id="cardGoldLabel">GOLD</div>
                     </div>
-                    <div class="jackpot-card-value">
-                        <img src="/admin/ui/img/gold_icon.png" class="jackpot-card-icon">
+
+                    <div class="jackpot-card-value" id="cardGoldWrap">
+                        <img src="/admin/ui/img/gold_icon.png" alt="Gold" class="jackpot-card-icon">
                         <span class="fs-5 fw-semibold" id="cardGold">-</span>
                     </div>
+
                     <div class="jackpot-progress">
                         <div class="jackpot-progress-bar" id="goldProgress"></div>
                     </div>
+
                     <div class="jackpot-card-stats">
                         <div class="jackpot-stat">
                             <span>Probability</span>
@@ -107,28 +106,30 @@
                             <span id="goldExpectedHit">-</span>
                         </div>
                         <div class="jackpot-stat">
-                            <span>Contribution</span>
-                            <span id="goldContributionRate">-</span>
+                            <span>Draws since last hit</span>
+                            <span id="cardGoldDraws">-</span>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-12 col-md-2">
-            <div class="card shadow-sm jackpot-card">
+        <div class="col-12 col-lg-3">
+            <div class="card shadow-sm h-100 jackpot-card" id="cardJadeContainer">
                 <div class="card-body">
                     <div class="jackpot-card-header">
-                        <span class="text-muted small" id="cardJadeLabel">JADE</span>
-                        <span class="jackpot-draws" id="cardJadeDraws">Draws: -</span>
+                        <div class="text-muted small" id="cardJadeLabel">JADE</div>
                     </div>
-                    <div class="jackpot-card-value">
-                        <img src="/admin/ui/img/jade_icon.png" class="jackpot-card-icon">
+
+                    <div class="jackpot-card-value" id="cardJadeWrap">
+                        <img src="/admin/ui/img/jade_icon.png" alt="Jade" class="jackpot-card-icon">
                         <span class="fs-5 fw-semibold" id="cardJade">-</span>
                     </div>
+
                     <div class="jackpot-progress">
                         <div class="jackpot-progress-bar" id="jadeProgress"></div>
                     </div>
+
                     <div class="jackpot-card-stats">
                         <div class="jackpot-stat">
                             <span>Probability</span>
@@ -139,8 +140,8 @@
                             <span id="jadeExpectedHit">-</span>
                         </div>
                         <div class="jackpot-stat">
-                            <span>Contribution</span>
-                            <span id="jadeContributionRate">-</span>
+                            <span>Draws since last hit</span>
+                            <span id="cardJadeDraws">-</span>
                         </div>
                     </div>
                 </div>
@@ -190,6 +191,11 @@
             </button>
         </li>
         <li class="nav-item" role="presentation">
+            <button class="nav-link" id="turnover-tab" data-bs-toggle="tab" data-bs-target="#turnover-pane" type="button">
+                Turnover
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
             <button class="nav-link" id="maintenance-tab" data-bs-toggle="tab" data-bs-target="#maintenance-pane" type="button">
                 Maintenance
             </button>
@@ -199,38 +205,11 @@
     <div class="tab-content">
         <div class="tab-pane fade show active" id="dashboard-pane">
             <div class="row g-3">
-                <div class="col-12 col-md-3">
+                <div class="col-12">
                     <div class="card shadow-sm">
+                        <div class="card-header">Tables Overview</div>
                         <div class="card-body">
-                            <div class="text-muted small">System Mode</div>
-                            <div class="fs-5 fw-semibold" id="dashboardSystemMode">-</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-12 col-md-3">
-                    <div class="card shadow-sm">
-                        <div class="card-body">
-                            <div class="text-muted small">Devices Online (Tables/Displays)</div>
-                            <div class="fs-5 fw-semibold" id="dashboardDevicesOnline">-</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-12 col-md-3">
-                    <div class="card shadow-sm">
-                        <div class="card-body">
-                            <div class="text-muted small">Bet Batches Today</div>
-                            <div class="fs-5 fw-semibold" id="dashboardBatchesToday">-</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-12 col-md-3">
-                    <div class="card shadow-sm">
-                        <div class="card-body">
-                            <div class="text-muted small">Jackpot Hits Today</div>
-                            <div class="fs-5 fw-semibold" id="dashboardHitsToday">-</div>
+                            <div id="miniTableStage" class="mini-table-stage"></div>
                         </div>
                     </div>
                 </div>
@@ -238,15 +217,6 @@
                 <div class="col-12">
                     <div id="dashboardDisplayWarning" class="alert alert-danger d-none mb-0" role="alert">
                         No display is online. Dealers may not see jackpots, bet and payout confirmation.
-                    </div>
-                </div>
-
-                <div class="col-12 col-lg-4">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-header">Pending Win</div>
-                        <div class="card-body" id="dashboardPendingWinBox">
-                            <div class="text-muted">No pending win</div>
-                        </div>
                     </div>
                 </div>
 
@@ -261,38 +231,40 @@
 
                 <div class="col-12 col-lg-4">
                     <div class="card shadow-sm h-100">
-                        <div class="card-header">Turnover</div>
-
-                        <div class="card-body">
-
-                            <div class="mb-3">
-                                <strong>Today</strong>
-                                <div class="d-flex justify-content-between">
-                                    <span>Total In</span>
-                                    <span id="totalInToday">-</span>
-                                </div>
-
-                                <div class="d-flex justify-content-between">
-                                    <span>Total Out</span>
-                                    <span id="totalOutToday">-</span>
-                                </div>
+                        <div class="card-header">Today Stat</div>
+                        <div class="card-body" id="dashboardTodayStatBox">
+                            <div class="mb-2 d-flex justify-content-between">
+                                <span>Bet batches</span>
+                                <strong id="todayStatBetBatches">-</strong>
                             </div>
-
-                            <hr>
-
-                            <div>
-                                <strong>All Time</strong>
-                                <div class="d-flex justify-content-between">
-                                    <span>Total In</span>
-                                    <span id="totalInAllTime">-</span>
-                                </div>
-
-                                <div class="d-flex justify-content-between">
-                                    <span>Total Out</span>
-                                    <span id="totalOutAllTime">-</span>
-                                </div>
+                            <div class="mb-2 d-flex justify-content-between">
+                                <span>RUBY hits</span>
+                                <strong id="todayStatRubyHits">-</strong>
                             </div>
+                            <div class="mb-2 d-flex justify-content-between">
+                                <span>GOLD hits</span>
+                                <strong id="todayStatGoldHits">-</strong>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>JADE hits</span>
+                                <strong id="todayStatJadeHits">-</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
+                <div class="col-12 col-lg-4">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header">Devices Summary</div>
+                        <div class="card-body" id="dashboardDevicesSummaryBox">
+                            <div class="mb-2 d-flex justify-content-between">
+                                <span>Displays online</span>
+                                <strong id="dashboardDisplaysOnline">-</strong>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>Tables online</span>
+                                <strong id="dashboardTablesOnline">-</strong>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -300,7 +272,10 @@
                 <div class="col-12">
                     <div class="card shadow-sm">
                         <div class="card-header d-flex justify-content-between align-items-center">
-                            <span>Latest Bet Batches <span class="badge text-bg-secondary" id="dashboardLatestBatchesCount">0</span></span>
+                            <span>
+                                Latest Bet Batches
+                                <span class="badge text-bg-secondary" id="dashboardLatestBatchesCount">0</span>
+                            </span>
                             <button id="refreshDashboardBtn" class="btn btn-sm btn-outline-primary">Refresh</button>
                         </div>
                         <div class="card-body">
@@ -557,48 +532,7 @@
         </div>
 
         <div class="tab-pane fade" id="settings-pane">
-
-            <div class="card shadow-sm mt-3">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <span>Server Settings</span>
-                    <button id="refreshServerSettingsBtn" class="btn btn-sm btn-outline-primary">Refresh</button>
-                </div>
-                <div class="card-body">
-                    <form id="serverSettingsForm" class="row g-3">
-                        <div class="col-12 col-md-4">
-                            <label class="form-label">Currency Code</label>
-                            <input
-                                    type="text"
-                                    class="form-control"
-                                    id="serverCurrencyCode"
-                                    maxlength="3"
-                                    placeholder="CFA"
-                            >
-                        </div>
-
-                        <div class="col-12 col-md-4">
-                            <label class="form-label">Base Bet Amount</label>
-                            <input
-                                    type="number"
-                                    min="0"
-                                    step="1"
-                                    class="form-control"
-                                    id="serverBaseBetAmount"
-                                    placeholder="100"
-                            >
-                        </div>
-
-                        <div class="col-12">
-                            <button type="submit" class="btn btn-primary" id="saveServerSettingsBtn">Save</button>
-                        </div>
-
-                        <div id="serverSettingsSaveError" class="text-danger small d-none"></div>
-                        <div id="serverSettingsSaveSuccess" class="text-success small d-none">Saved successfully.</div>
-                    </form>
-                </div>
-            </div>
-
-            <div class="card shadow-sm mt-3">
+            <div class="card shadow-sm">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <span>Jackpot Settings</span>
                     <button id="refreshSettingsBtn" class="btn btn-sm btn-outline-primary">Refresh</button>
@@ -624,55 +558,90 @@
                     </table>
                 </div>
             </div>
+
+            <div class="card shadow-sm mt-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Server Settings</span>
+                    <button id="refreshServerSettingsBtn" class="btn btn-sm btn-outline-primary">Refresh</button>
+                </div>
+                <div class="card-body">
+                    <form id="serverSettingsForm" class="row g-3">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label">Currency Code</label>
+                            <input
+                                    type="text"
+                                    class="form-control"
+                                    id="serverCurrencyCode"
+                                    maxlength="3"
+                                    placeholder="CFA">
+                        </div>
+
+                        <div class="col-12 col-md-4">
+                            <label class="form-label">Base Bet Amount</label>
+                            <input
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    class="form-control"
+                                    id="serverBaseBetAmount"
+                                    placeholder="100">
+                        </div>
+
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary" id="saveServerSettingsBtn">Save</button>
+                        </div>
+
+                        <div id="serverSettingsSaveError" class="text-danger small d-none"></div>
+                        <div id="serverSettingsSaveSuccess" class="text-success small d-none">Saved successfully.</div>
+                    </form>
+                </div>
+            </div>
         </div>
 
-        <div class="tab-pane fade" id="maintenance-pane">
+        <div class="tab-pane fade" id="turnover-pane">
             <div class="row g-3">
-                <div class="col-12 col-xl-8">
-                    <div class="card shadow-sm">
-                        <div class="card-header">
-                            System Actions
-                        </div>
+                <div class="col-12 col-lg-6">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header">Today</div>
                         <div class="card-body">
-                            <div class="d-flex flex-wrap gap-2">
-                                <button class="btn btn-outline-primary" data-system-action="refresh">
-                                    Refresh Snapshot
-                                </button>
-
-                                <button class="btn btn-outline-warning" data-system-action="clear-active-boxes">
-                                    Clear Active Boxes
-                                </button>
-
-                                <button class="btn btn-outline-warning" data-system-action="clear-recent-boxes">
-                                    Clear Recent Boxes
-                                </button>
-
-                                <button class="btn btn-outline-danger" data-system-action="reset-pending-win">
-                                    Reset Pending Win
-                                </button>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Total In</span>
+                                <strong id="turnoverInToday">-</strong>
                             </div>
-
-                            <div class="mt-3 small text-muted">
-                                Use these actions carefully. They affect the live host state.
+                            <div class="d-flex justify-content-between">
+                                <span>Total Out</span>
+                                <strong id="turnoverOutToday">-</strong>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="col-12 col-xl-4">
-                    <div class="card shadow-sm">
-                        <div class="card-header">
-                            Last Result
-                        </div>
+                <div class="col-12 col-lg-6">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header">All Time</div>
                         <div class="card-body">
-                            <pre id="systemActionResultBox" class="json-box mb-0">{}</pre>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Total In</span>
+                                <strong id="turnoverInAllTime">-</strong>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>Total Out</span>
+                                <strong id="turnoverOutAllTime">-</strong>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-
+        <div class="tab-pane fade" id="maintenance-pane">
+            <div class="card shadow-sm">
+                <div class="card-header">Maintenance</div>
+                <div class="card-body">
+                    <div class="text-muted">Maintenance actions will go here.</div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -728,41 +697,6 @@
                 <button type="submit" class="btn btn-primary" id="saveJackpotSettingsBtn">Save</button>
             </div>
         </form>
-    </div>
-</div>
-
-<div class="modal fade" id="systemActionConfirmModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Confirm System Action</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-
-            <div class="modal-body">
-                <div id="systemActionConfirmText">
-                    Are you sure?
-                </div>
-            </div>
-
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-                    Cancel
-                </button>
-                <button type="button" class="btn btn-danger" id="systemActionConfirmBtn">
-                    Confirm
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="toast-container position-fixed bottom-0 end-0 p-3">
-    <div id="adminToast" class="toast align-items-center text-bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
-        <div class="d-flex">
-            <div class="toast-body" id="adminToastBody">Done</div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-        </div>
     </div>
 </div>
 
