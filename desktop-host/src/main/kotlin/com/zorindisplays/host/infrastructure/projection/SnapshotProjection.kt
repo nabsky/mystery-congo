@@ -19,9 +19,23 @@ class SnapshotProjection {
                 },
             jackpots = state.jackpots
                 .mapKeys { (jackpotId, _) -> jackpotId.name }
-                .mapValues { (_, jackpotState) -> jackpotState.currentAmount },
+                .mapValues { (_, jackpotState) ->
+                    JackpotStateDto.JackpotInfoDto(
+                        currentAmount = jackpotState.currentAmount,
+                        gamesSinceLastHit = jackpotState.gamesSinceLastHit
+                    )
+                },
             jackpotGrowth = state.jackpotGrowth
                 .mapKeys { (jackpotId, _) -> jackpotId.name },
+            jackpotSettings = state.jackpotSettings
+                .mapKeys { (jackpotId, _) -> jackpotId.name }
+                .mapValues { (_, settings) ->
+                    JackpotStateDto.JackpotSettingsDto(
+                        resetAmount = settings.resetAmount,
+                        contributionPerBet = settings.contributionPerBet,
+                        hitFrequencyGames = settings.hitFrequencyGames
+                    )
+                },
             systemMode = when (state.systemMode) {
                 SystemMode.ACCEPTING_BETS -> JackpotStateDto.SystemModeDto.ACCEPTING_BETS
                 SystemMode.PAYOUT_PENDING -> JackpotStateDto.SystemModeDto.PAYOUT_PENDING

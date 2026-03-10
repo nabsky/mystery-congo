@@ -2,13 +2,15 @@ package com.zorindisplays.mystery.model
 
 import kotlinx.serialization.Serializable
 
-
 @Serializable
 data class JackpotState(
     val tables: List<Table> = emptyList(),
-    val jackpots: Map<String, Long> = emptyMap(), // "RUBY", "GOLD", "JADE"
+    val jackpots: Map<String, JackpotInfo> = emptyMap(),
+    val jackpotGrowth: Map<String, Long> = emptyMap(),
+    val jackpotSettings: Map<String, JackpotSettings> = emptyMap(),
     val systemMode: SystemMode = SystemMode.ACCEPTING_BETS,
     val pendingWin: PendingWin? = null,
+    val currencyCode: String = "CFA",
 ) {
     @Serializable
     data class Table(
@@ -16,6 +18,19 @@ data class JackpotState(
         val activeBoxes: Set<Int> = emptySet(),
         val recentBoxes: Set<Int> = emptySet(),
         val isActive: Boolean = true,
+    )
+
+    @Serializable
+    data class JackpotInfo(
+        val currentAmount: Long,
+        val gamesSinceLastHit: Int,
+    )
+
+    @Serializable
+    data class JackpotSettings(
+        val resetAmount: Long,
+        val contributionPerBet: Long,
+        val hitFrequencyGames: Int,
     )
 
     @Serializable

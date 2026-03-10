@@ -86,6 +86,66 @@ body {
     box-shadow: 0 0 10px rgba(220,53,69,0.4);
 }
 
+.jackpot-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.jackpot-draws {
+    font-size: 11px;
+    color: #6c757d;
+}
+
+.jackpot-card-value {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.jackpot-card-icon {
+    width: 22px;
+    height: 22px;
+}
+
+.jackpot-card-stats {
+    margin-top: 8px;
+    font-size: 11px;
+}
+
+.jackpot-stat {
+    display: flex;
+    justify-content: space-between;
+    color: #6c757d;
+}
+
+.jackpot-progress {
+    height: 4px;
+    background: #e9ecef;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 6px;
+    margin-bottom: 6px;
+}
+
+.jackpot-progress-bar {
+    height: 100%;
+    width: 0%;
+    transition: width 0.4s ease;
+    background: linear-gradient(90deg,#28a745,#ffc107,#dc3545);
+}
+
+.jackpot-hot-bar {
+    animation: jackpotPulse 1.4s infinite;
+}
+
+@keyframes jackpotPulse {
+    0% { opacity: 1 }
+    50% { opacity: 0.5 }
+    100% { opacity: 1 }
+}
+
 .dashboard-jackpot-row {
     display: flex;
     align-items: center;

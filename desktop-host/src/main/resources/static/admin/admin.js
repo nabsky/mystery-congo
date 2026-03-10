@@ -141,24 +141,52 @@ function setServerStatus(ok, text) {
 
 function renderDraws(elementId, draws, hitFrequency) {
     const el = document.getElementById(elementId)
-
     if (draws == null) {
         el.textContent = "-"
         el.className = "jackpot-card-meta"
         return
     }
-
     el.textContent = `Draws: ${draws}`
     el.className = "jackpot-card-meta"
 
     if (!hitFrequency) return
 
     const ratio = draws / hitFrequency
-
     if (ratio >= 1.5) {
         el.classList.add("jackpot-hot")
     } else if (ratio >= 1.0) {
         el.classList.add("jackpot-warm")
+    }
+}
+
+function renderProbability(draws, frequency) {
+    if (!draws || !frequency) return "-"
+    const p = Math.min(1, draws / frequency)
+    return Math.round(p * 100) + "%"
+}
+
+function renderExpectedHit(draws, frequency) {
+    if (!draws || !frequency) return "-"
+    const remaining = frequency - draws
+    if (remaining <= 0) return "any moment"
+    return "~" + remaining + " draws"
+}
+
+function renderContributionRate(rate) {
+    if (!rate) return "-"
+    return formatMoney(rate) + " / min"
+}
+
+function renderJackpotProgress(elementId, draws, frequency) {
+    const el = document.getElementById(elementId)
+    if (!draws || !frequency) {
+        el.style.width = "0%"
+        return
+    }
+    const ratio = Math.min(1.5, draws / frequency)
+    el.style.width = Math.min(100, ratio * 100) + "%"
+    if (ratio >= 1.2) {
+        el.classList.add("jackpot-hot-bar")
     }
 }
 
@@ -170,43 +198,86 @@ function fillCards(snapshot) {
         : "-";
     document.getElementById("cardPendingWin").textContent = pending;
 
-    document.getElementById("cardRuby").textContent = formatMoney(snapshot.jackpots?.RUBY);
-    document.getElementById("cardGold").textContent = formatMoney(snapshot.jackpots?.GOLD);
-    document.getElementById("cardJade").textContent = formatMoney(snapshot.jackpots?.JADE);
+    const currency = snapshot.currencyCode ?? "";
+
+    const ruby = snapshot.jackpots?.RUBY;
+    const gold = snapshot.jackpots?.GOLD;
+    const jade = snapshot.jackpots?.JADE;
+
+    const rubyGrowth = snapshot.jackpotGrowth?.RUBY;
+    const goldGrowth = snapshot.jackpotGrowth?.GOLD;
+    const jadeGrowth = snapshot.jackpotGrowth?.JADE;
+
+    const rubySettings = snapshot.jackpotSettings?.RUBY;
+    const goldSettings = snapshot.jackpotSettings?.GOLD;
+    const jadeSettings = snapshot.jackpotSettings?.JADE;
+
+    document.getElementById("cardRuby").textContent =
+        formatMoney(ruby?.currentAmount, currency);
+    document.getElementById("cardGold").textContent =
+        formatMoney(gold?.currentAmount, currency);
+    document.getElementById("cardJade").textContent =
+        formatMoney(jade?.currentAmount, currency);
 
     document.getElementById("cardRubyLabel").textContent =
-        `RUBY ${formatDelta(snapshot.jackpotGrowth?.RUBY)}`.trim();
+        `RUBY ${formatDelta(rubyGrowth)}`.trim();
     document.getElementById("cardGoldLabel").textContent =
-        `GOLD ${formatDelta(snapshot.jackpotGrowth?.GOLD)}`.trim();
+        `GOLD ${formatDelta(goldGrowth)}`.trim();
     document.getElementById("cardJadeLabel").textContent =
-        `JADE ${formatDelta(snapshot.jackpotGrowth?.JADE)}`.trim();
-
-    document.getElementById("cardRubyDraws").textContent =
-        `Draws: ${snapshot.jackpots?.RUBY?.gamesSinceLastHit ?? "-"}`;
-
-    document.getElementById("cardGoldDraws").textContent =
-        `Draws: ${snapshot.jackpots?.GOLD?.gamesSinceLastHit ?? "-"}`;
-
-    document.getElementById("cardJadeDraws").textContent =
-        `Draws: ${snapshot.jackpots?.JADE?.gamesSinceLastHit ?? "-"}`;
+        `JADE ${formatDelta(jadeGrowth)}`.trim();
 
     renderDraws(
         "cardRubyDraws",
-        snapshot.jackpots?.RUBY?.gamesSinceLastHit,
-        snapshot.jackpotSettings?.RUBY?.hitFrequencyGames
-    )
-
+        ruby?.gamesSinceLastHit,
+        rubySettings?.hitFrequencyGames
+    );
     renderDraws(
         "cardGoldDraws",
-        snapshot.jackpots?.GOLD?.gamesSinceLastHit,
-        snapshot.jackpotSettings?.GOLD?.hitFrequencyGames
-    )
-
+        gold?.gamesSinceLastHit,
+        goldSettings?.hitFrequencyGames
+    );
     renderDraws(
         "cardJadeDraws",
-        snapshot.jackpots?.JADE?.gamesSinceLastHit,
-        snapshot.jackpotSettings?.JADE?.hitFrequencyGames
-    )
+        jade?.gamesSinceLastHit,
+        jadeSettings?.hitFrequencyGames
+    );
+
+    renderJackpotProgress(
+        "rubyProgress",
+        ruby?.gamesSinceLastHit,
+        rubySettings?.hitFrequencyGames
+    );
+    renderJackpotProgress(
+        "goldProgress",
+        gold?.gamesSinceLastHit,
+        goldSettings?.hitFrequencyGames
+    );
+    renderJackpotProgress(
+        "jadeProgress",
+        jade?.gamesSinceLastHit,
+        jadeSettings?.hitFrequencyGames
+    );
+
+    document.getElementById("rubyProbability").textContent =
+        renderProbability(ruby?.gamesSinceLastHit, rubySettings?.hitFrequencyGames);
+    document.getElementById("goldProbability").textContent =
+        renderProbability(gold?.gamesSinceLastHit, goldSettings?.hitFrequencyGames);
+    document.getElementById("jadeProbability").textContent =
+        renderProbability(jade?.gamesSinceLastHit, jadeSettings?.hitFrequencyGames);
+
+    document.getElementById("rubyExpectedHit").textContent =
+        renderExpectedHit(ruby?.gamesSinceLastHit, rubySettings?.hitFrequencyGames);
+    document.getElementById("goldExpectedHit").textContent =
+        renderExpectedHit(gold?.gamesSinceLastHit, goldSettings?.hitFrequencyGames);
+    document.getElementById("jadeExpectedHit").textContent =
+        renderExpectedHit(jade?.gamesSinceLastHit, jadeSettings?.hitFrequencyGames);
+
+    document.getElementById("rubyContributionRate").textContent =
+        renderContributionRate(rubySettings?.contributionPerBet, currency);
+    document.getElementById("goldContributionRate").textContent =
+        renderContributionRate(goldSettings?.contributionPerBet, currency);
+    document.getElementById("jadeContributionRate").textContent =
+        renderContributionRate(jadeSettings?.contributionPerBet, currency);
 }
 
 function fillTablesState(snapshot) {

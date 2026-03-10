@@ -20,7 +20,42 @@ class Emulator(
     private val tableCount: Int = 8,
     private val boxesPerTable: Int = 9,
 ) {
-    private val _state = MutableStateFlow(JackpotState())
+    private val _state = MutableStateFlow(
+        JackpotState(
+            tables = (0 until tableCount).map { idx ->
+                JackpotState.Table(
+                    tableId = idx,
+                    activeBoxes = emptySet(),
+                    recentBoxes = emptySet(),
+                    isActive = false
+                )
+            },
+            jackpots = mapOf(
+                "RUBY" to JackpotState.JackpotInfo(
+                    currentAmount = START_RUBY,
+                    gamesSinceLastHit = 0
+                ),
+                "GOLD" to JackpotState.JackpotInfo(
+                    currentAmount = START_GOLD,
+                    gamesSinceLastHit = 0
+                ),
+                "JADE" to JackpotState.JackpotInfo(
+                    currentAmount = START_JADE,
+                    gamesSinceLastHit = 0
+                )
+            ),
+            jackpotGrowth = mapOf(
+                "RUBY" to 0L,
+                "GOLD" to 0L,
+                "JADE" to 0L
+            ),
+            jackpotSettings = emptyMap(),
+            systemMode = JackpotState.SystemMode.ACCEPTING_BETS,
+            pendingWin = null,
+            currencyCode = "CFA"
+        )
+    )
+
     val state: StateFlow<JackpotState> = _state.asStateFlow()
 
     private val _events = MutableSharedFlow<JackpotEvent>(extraBufferCapacity = 32)
@@ -52,12 +87,23 @@ class Emulator(
 
     fun resetJackpot(level: Int) {
         val jackpots = _state.value.jackpots.toMutableMap()
+
         when (level) {
-            1 -> jackpots["RUBY"] = START_RUBY
-            2 -> jackpots["GOLD"] = START_GOLD
-            else -> jackpots["JADE"] = START_JADE
+            1 -> jackpots["RUBY"] = JackpotState.JackpotInfo(
+                currentAmount = START_RUBY,
+                gamesSinceLastHit = 0
+            )
+            2 -> jackpots["GOLD"] = JackpotState.JackpotInfo(
+                currentAmount = START_GOLD,
+                gamesSinceLastHit = 0
+            )
+            else -> jackpots["JADE"] = JackpotState.JackpotInfo(
+                currentAmount = START_JADE,
+                gamesSinceLastHit = 0
+            )
         }
-        rebuildState(jackpots)
+
+        rebuildState(jackpots = jackpots)
     }
 
     fun onKeepAlive(active: Set<Int>) {
@@ -96,10 +142,23 @@ class Emulator(
 
     private fun onNoWinBump() {
         val jackpots = _state.value.jackpots.toMutableMap()
-        jackpots["RUBY"] = (jackpots["RUBY"] ?: START_RUBY) + 1000
-        jackpots["GOLD"] = (jackpots["GOLD"] ?: START_GOLD) + 1000
-        jackpots["JADE"] = (jackpots["JADE"] ?: START_JADE) + 1000
-        rebuildState(jackpots)
+
+        fun bump(
+            key: String,
+            fallback: Long
+        ) {
+            val current = jackpots[key]
+            jackpots[key] = JackpotState.JackpotInfo(
+                currentAmount = (current?.currentAmount ?: fallback) + 1000,
+                gamesSinceLastHit = (current?.gamesSinceLastHit ?: 0) + 1
+            )
+        }
+
+        bump("RUBY", START_RUBY)
+        bump("GOLD", START_GOLD)
+        bump("JADE", START_JADE)
+
+        rebuildState(jackpots = jackpots)
     }
 
     private suspend fun emitWin(level: Int, table: Int, box: Int, amountWon: Long) {
@@ -185,9 +244,9 @@ class Emulator(
 
             val winnerBox = boxes.random(rnd)
             val amountWon = when (level) {
-                1 -> _state.value.jackpots["RUBY"] ?: START_RUBY
-                2 -> _state.value.jackpots["GOLD"] ?: START_GOLD
-                else -> _state.value.jackpots["JADE"] ?: START_JADE
+                1 -> _state.value.jackpots["RUBY"]?.currentAmount ?: START_RUBY
+                2 -> _state.value.jackpots["GOLD"]?.currentAmount ?: START_GOLD
+                else -> _state.value.jackpots["JADE"]?.currentAmount ?: START_JADE
             }
 
             emitWin(
@@ -213,14 +272,19 @@ class Emulator(
     }
 
     private fun rebuildState(
-        jackpots: Map<String, Long> = _state.value.jackpots,
+        jackpots: Map<String, JackpotState.JackpotInfo> = _state.value.jackpots,
         clearLitBets: Boolean = false,
         activeTables: Set<Int>? = null,
         litBets: Map<Int, Set<Int>>? = null
     ) {
         val jps = if (jackpots.isEmpty()) _state.value.jackpots else jackpots
         val actTables = activeTables ?: _state.value.tables.filter { it.isActive }.map { it.tableId }.toSet()
-        val lit = if (clearLitBets) emptyMap() else litBets ?: _state.value.tables.associate { it.tableId to it.activeBoxes }
+        val lit = if (clearLitBets) {
+            emptyMap()
+        } else {
+            litBets ?: _state.value.tables.associate { it.tableId to it.activeBoxes }
+        }
+
         val tables = (0 until tableCount).map { idx ->
             JackpotState.Table(
                 tableId = idx,
@@ -229,9 +293,15 @@ class Emulator(
                 isActive = actTables.contains(idx)
             )
         }
+
         _state.value = JackpotState(
             tables = tables,
-            jackpots = jps
+            jackpots = jps,
+            jackpotGrowth = _state.value.jackpotGrowth,
+            jackpotSettings = _state.value.jackpotSettings,
+            systemMode = _state.value.systemMode,
+            pendingWin = _state.value.pendingWin,
+            currencyCode = _state.value.currencyCode
         )
     }
 }

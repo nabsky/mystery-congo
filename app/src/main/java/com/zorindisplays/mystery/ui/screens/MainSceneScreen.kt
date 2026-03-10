@@ -97,9 +97,9 @@ fun MainSceneScreen(
 
     val demo: JackpotState by dataSource.state.collectAsState()
 
-    val jackpot1 = demo.jackpots["RUBY"] ?: 0L
-    val jackpot2 = demo.jackpots["GOLD"] ?: 0L
-    val jackpot3 = demo.jackpots["JADE"] ?: 0L
+    val jackpot1 = demo.jackpots["RUBY"]?.currentAmount ?: 0L
+    val jackpot2 = demo.jackpots["GOLD"]?.currentAmount ?: 0L
+    val jackpot3 = demo.jackpots["JADE"]?.currentAmount ?: 0L
 
     val activeTables: Set<Int> = demo.tables.filter { it.isActive }.map { it.tableId }.toSet()
     val litBets: Map<Int, Set<Int>> = demo.tables.associate { it.tableId to it.activeBoxes }
@@ -446,7 +446,7 @@ fun MainSceneScreen(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .fillMaxWidth(),
-                text = "ALL JACKPOTS IN CFA",
+                text = "ALL JACKPOTS IN ${demo.currencyCode}",
                 fontFamily = MontserratBold
             )
 

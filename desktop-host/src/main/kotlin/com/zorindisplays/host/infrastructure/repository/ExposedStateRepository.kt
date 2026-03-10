@@ -154,6 +154,17 @@ class ExposedStateRepository {
                 jackpotId to (confirmedBoxesSinceTs * contributionPerBet)
             }
 
+        val jackpotSettings = JackpotConfigTable
+            .selectAll()
+            .associate { row ->
+                val jackpotId = JackpotId.valueOf(row[JackpotConfigTable.jackpotId])
+                jackpotId to com.zorindisplays.host.domain.model.JackpotSnapshotSettings(
+                    resetAmount = row[JackpotConfigTable.resetAmount],
+                    contributionPerBet = row[JackpotConfigTable.contributionPerBet],
+                    hitFrequencyGames = row[JackpotConfigTable.hitFrequencyGames]
+                )
+            }
+
         HostState(
             stateVersion = stateVersion,
             lastEventId = lastEventId,
@@ -161,6 +172,7 @@ class ExposedStateRepository {
             pendingWin = pendingWin,
             jackpots = jackpots,
             jackpotGrowth = jackpotGrowth,
+            jackpotSettings = jackpotSettings,
             tables = tables,
             currencyCode = currencyCode
         )
