@@ -431,29 +431,33 @@ th {
 .mini-box {
     width: 12px;
     height: 12px;
-    border-radius: 50%;
-    background: #ffffff;
+    border-radius: 2px;
     border: 1px solid #9a9a9a;
+    background: #ffffff;
     box-sizing: border-box;
 }
 
-.mini-box-online {
-    border-color: #6f6f6f;
+/* offline table */
+.mini-box-offline {
+    background: #e9e9e9;
+    border-color: #cfcfcf;
 }
 
+/* recent bets */
 .mini-box-recent {
-    background: #ffd84d;
-    border-color: #c8a200;
+    background: #cfe7ff;
+    border-color: #9dc8f2;
 }
 
+/* active bets */
 .mini-box-active {
-    background: #1e6fe3;
-    border-color: #0f4fb3;
+    background: #4da3ff;
+    border-color: #1f6fc8;
 }
 
+/* winner */
 .mini-box-winner {
     animation: miniWinnerPulse 1s infinite alternate;
-    z-index: 2;
 }
 
 .mini-box-winner-ruby {
@@ -507,6 +511,10 @@ th {
     border-radius: 50% !important;
 }
 
+.mini-table-offline {
+    opacity: 0.55;
+}
+
 @keyframes miniWinnerPulse {
     from { transform: scale(1); }
     to { transform: scale(1.15); }
@@ -530,6 +538,13 @@ th {
 .tables-legend {
     border-left: 1px solid #000;
     padding-left: 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.tables-legend-column {
+    min-width: 0;
 }
 
 .tables-legend-title {
@@ -550,7 +565,6 @@ th {
 .legend-box {
     flex: 0 0 auto;
 }
-
 /* --------------------------------------------------- */
 /* PENDING WIN TABLE HIGHLIGHT */
 /* --------------------------------------------------- */
@@ -589,8 +603,8 @@ th {
         border-top: 1px solid #000;
         padding-left: 0;
         padding-top: 12px;
-        min-width: 0;
         width: 100%;
+        grid-template-columns: 1fr 1fr;
     }
 }
 

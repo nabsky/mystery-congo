@@ -316,6 +316,10 @@ function renderMiniTableStage(snapshot) {
         const tableEl = document.createElement("div");
         tableEl.className = "mini-table";
 
+        if (!table.isActive) {
+            tableEl.classList.add("mini-table-offline");
+        }
+
         const isPendingTable = winnerTableId === table.tableId;
 
         if (isPendingTable) {
