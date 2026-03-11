@@ -304,16 +304,25 @@ function renderMiniTableStage(snapshot) {
     if (!root) return;
 
     const tables = snapshot.tables || [];
-    root.innerHTML = "";
-
     const pending = snapshot.pendingWin;
+
     const winnerTableId = pending?.tableId ?? null;
     const winnerBoxId = pending?.boxId ?? null;
     const winnerJackpotId = pending?.jackpotId ?? null;
 
+    root.innerHTML = "";
+
     tables.forEach((table, index) => {
         const tableEl = document.createElement("div");
         tableEl.className = "mini-table";
+
+        const isPendingTable = winnerTableId === table.tableId;
+
+        if (isPendingTable) {
+            if (winnerJackpotId === "RUBY") tableEl.classList.add("mini-table-pending-ruby");
+            if (winnerJackpotId === "GOLD") tableEl.classList.add("mini-table-pending-gold");
+            if (winnerJackpotId === "JADE") tableEl.classList.add("mini-table-pending-jade");
+        }
 
         const labelEl = document.createElement("div");
         labelEl.className = "mini-table-label";

@@ -150,23 +150,29 @@ body {
 
 #miniTableStage {
     display: flex;
-    align-items: center;
-    justify-content: center;
     flex-wrap: wrap;
-    gap: 14px;
-    margin-top: 6px;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 12px;
 }
 
 .mini-table {
     display: flex;
     flex-direction: column;
     align-items: center;
+    width: 42px;
 }
 
 .mini-table-label {
+    width: 100%;
+    text-align: center;
     font-size: 11px;
-    margin-bottom: 3px;
-    color: #666;
+    color: #444;
+    margin-bottom: 4px;
+    line-height: 1;
+    padding: 3px 0;
+    border: 1px solid transparent;
+    box-sizing: border-box;
 }
 
 .mini-table-grid {
@@ -180,48 +186,164 @@ body {
     width: 12px;
     height: 12px;
     border-radius: 50%;
-    background: #fff;
+    background: #ffffff;
     border: 1px solid #9a9a9a;
     box-sizing: border-box;
 }
 
 .mini-box-online {
-    border-color: #7f7f7f;
+    border-color: #6f6f6f;
 }
 
 .mini-box-recent {
-    background: #cfcfcf;
-    border-color: #8d8d8d;
+    background: #ffd84d;
+    border-color: #c8a200;
 }
 
 .mini-box-active {
-    background: #0d6efd;
-    border-color: #084298;
+    background: #1e6fe3;
+    border-color: #0f4fb3;
 }
 
-.mini-box.mini-box-winner {
+.mini-box-winner {
     animation: miniWinnerPulse 1s infinite alternate;
     z-index: 2;
 }
 
-.mini-box.mini-box-winner-ruby {
-    background: #c1121f !important;
-    border: 1px solid #7f0b14 !important;
+.mini-box-winner-ruby {
+    background: #e12626 !important;
+    border: 1px solid #990d0d !important;
 }
 
-.mini-box.mini-box-winner-gold {
-    background: #c79a00 !important;
-    border: 1px solid #8f6e00 !important;
+.mini-box-winner-gold {
+    background: #d6a500 !important;
+    border: 1px solid #8a6b00 !important;
 }
 
-.mini-box.mini-box-winner-jade {
-    background: #0a9a6b !important;
-    border: 1px solid #066746 !important;
+.mini-box-winner-jade {
+    background: #16a572 !important;
+    border: 1px solid #0c6a49 !important;
+}
+
+.mini-table-pending-ruby .mini-table-label {
+    background: #e12626;
+    color: #fff;
+    border-color: #990d0d;
+    font-weight: 600;
+}
+
+.mini-table-pending-gold .mini-table-label {
+    background: #d6a500;
+    color: #111;
+    border-color: #8a6b00;
+    font-weight: 600;
+}
+
+.mini-table-pending-jade .mini-table-label {
+    background: #16a572;
+    color: #fff;
+    border-color: #0c6a49;
+    font-weight: 600;
+}
+
+.mini-table-separator {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-self: center;
+    margin: 0 2px;
+}
+
+.mini-table-separator span {
+    width: 3px;
+    height: 3px;
+    background: #b7b7b7;
+    border-radius: 50% !important;
 }
 
 @keyframes miniWinnerPulse {
-    from { transform: scale(1); opacity: 0.8; }
-    to { transform: scale(1.08); opacity: 1; }
+    from { transform: scale(1); }
+    to { transform: scale(1.15); }
+}
+/* --------------------------------------------------- */
+/* TABLES OVERVIEW LAYOUT */
+/* --------------------------------------------------- */
+
+.tables-overview-layout {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+}
+
+.mini-table-stage {
+    flex: 1 1 auto;
+}
+
+.tables-legend {
+    flex: 0 0 180px;
+    border-left: 1px solid #000;
+    padding-left: 16px;
+    min-width: 180px;
+}
+
+.tables-legend-title {
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.tables-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    color: #333;
+}
+
+.legend-box {
+    flex: 0 0 auto;
+}
+
+/* --------------------------------------------------- */
+/* PENDING WIN TABLE HIGHLIGHT */
+/* --------------------------------------------------- */
+
+.mini-table-pending-ruby .mini-table-label {
+    background: #e12626;
+    color: #fff;
+    border-color: #990d0d;
+    font-weight: 600;
+}
+
+.mini-table-pending-gold .mini-table-label {
+    background: #d6a500;
+    color: #111;
+    border-color: #8a6b00;
+    font-weight: 600;
+}
+
+.mini-table-pending-jade .mini-table-label {
+    background: #16a572;
+    color: #fff;
+    border-color: #0c6a49;
+    font-weight: 600;
+}
+
+@media (max-width: 992px) {
+    .tables-overview-layout {
+        flex-direction: column;
+    }
+
+    .tables-legend {
+        border-left: none;
+        border-top: 1px solid #000;
+        padding-left: 0;
+        padding-top: 12px;
+        min-width: 0;
+        width: 100%;
+    }
 }
 
 /* --------------------------------------------------- */
