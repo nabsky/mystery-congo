@@ -1,36 +1,113 @@
 /* ----------------------------- */
-/* Poppins font */
+/* Fonts */
 /* ----------------------------- */
 
 @font-face {
     font-family: "Poppins";
     src: url("/admin/ui/fonts/Poppins-Regular.ttf") format("truetype");
     font-weight: 400;
+    font-style: normal;
 }
 
 @font-face {
     font-family: "Poppins";
     src: url("/admin/ui/fonts/Poppins-Medium.ttf") format("truetype");
     font-weight: 500;
+    font-style: normal;
 }
 
 @font-face {
     font-family: "Poppins";
     src: url("/admin/ui/fonts/Poppins-SemiBold.ttf") format("truetype");
     font-weight: 600;
+    font-style: normal;
 }
 
+:root {
+    --admin-black: #000000;
+    --admin-text: #111111;
+    --admin-muted: #666666;
+    --admin-bg: #ffffff;
+    --admin-soft: #f6f6f6;
+    --admin-soft-2: #fafafa;
+    --admin-line: #000000;
+    --ruby: #c1121f;
+    --gold: #c79a00;
+    --jade: #0a9a6b;
+    --blue: #0d6efd;
+}
+
+html,
 body {
+    background: var(--admin-bg);
+    color: var(--admin-text);
     font-family: "Poppins", sans-serif;
-    background: #ffffff;
+    font-size: 14px;
 }
 
 /* ----------------------------- */
-/* Remove bootstrap round corners */
+/* Global flat override */
 /* ----------------------------- */
 
 * {
     border-radius: 0 !important;
+}
+
+.shadow,
+.shadow-sm,
+.shadow-lg {
+    box-shadow: none !important;
+}
+
+hr {
+    border-color: var(--admin-black);
+    opacity: 1;
+}
+
+/* ----------------------------- */
+/* Typography */
+/* ----------------------------- */
+
+h1, h2, h3, h4, h5, h6,
+.fw-semibold,
+.card-header,
+.nav-link.active,
+.btn,
+th {
+    font-weight: 600 !important;
+}
+
+.text-muted {
+    color: var(--admin-muted) !important;
+}
+
+.mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ----------------------------- */
+/* Header */
+/* ----------------------------- */
+
+.admin-logo,
+.admin-header-logo {
+    height: 46px;
+    width: auto;
+    object-fit: contain;
+    display: block;
+}
+
+#serverStatusText {
+    font-size: 12px;
+}
+
+.status-ok {
+    color: #0a7a2f;
+}
+
+.status-bad {
+    color: #b42318;
 }
 
 /* ----------------------------- */
@@ -38,36 +115,19 @@ body {
 /* ----------------------------- */
 
 .card {
-    border: 1px solid #000;
-    box-shadow: none;
-}
-
-.card-header {
-    border-bottom: 1px solid #000;
-    font-weight: 600;
+    border: 1px solid var(--admin-line) !important;
     background: #fff;
 }
 
-/* ----------------------------- */
-/* Tables */
-/* ----------------------------- */
-
-.table {
-    border: 1px solid #000;
+.card-header {
+    background: #fff !important;
+    border-bottom: 1px solid var(--admin-line) !important;
+    padding-top: 10px;
+    padding-bottom: 10px;
 }
 
-.table th,
-.table td {
-    border: 1px solid #000 !important;
-}
-
-.table thead th {
-    background: #f7f7f7;
-    font-weight: 600;
-}
-
-.table-striped > tbody > tr:nth-of-type(odd) {
-    background: #fafafa;
+.card-body {
+    padding: 14px;
 }
 
 /* ----------------------------- */
@@ -75,126 +135,244 @@ body {
 /* ----------------------------- */
 
 .btn {
-    border-radius: 0;
-    border: 1px solid #000;
-    box-shadow: none;
+    border: 1px solid var(--admin-black) !important;
+    box-shadow: none !important;
+    padding: 0.375rem 0.75rem;
+}
+
+.btn:focus,
+.btn:active {
+    box-shadow: none !important;
+    outline: none !important;
 }
 
 .btn-primary {
-    background: #000;
-    border-color: #000;
+    background: var(--admin-black) !important;
+    color: #fff !important;
 }
 
 .btn-primary:hover {
-    background: #222;
-    border-color: #000;
+    background: #222 !important;
 }
 
-.btn-outline-primary {
-    border-color: #000;
-    color: #000;
+.btn-outline-primary,
+.btn-outline-secondary {
+    background: #fff !important;
+    color: var(--admin-black) !important;
+    border-color: var(--admin-black) !important;
 }
 
-.btn-outline-primary:hover {
-    background: #000;
-    color: #fff;
+.btn-outline-primary:hover,
+.btn-outline-secondary:hover {
+    background: var(--admin-black) !important;
+    color: #fff !important;
 }
 
 /* ----------------------------- */
-/* Inputs */
+/* Forms */
 /* ----------------------------- */
 
 .form-control,
 .form-select {
-    border-radius: 0;
-    border: 1px solid #000;
+    border: 1px solid var(--admin-black) !important;
+    box-shadow: none !important;
+    padding: 0.45rem 0.7rem;
 }
 
 .form-control:focus,
 .form-select:focus {
-    border-color: #000;
-    box-shadow: none;
+    border-color: var(--admin-black) !important;
+    box-shadow: none !important;
 }
 
 /* ----------------------------- */
 /* Tabs */
 /* ----------------------------- */
 
+.nav-tabs {
+    border-bottom: 1px solid var(--admin-black);
+}
+
 .nav-tabs .nav-link {
-    border: 1px solid #000;
+    border: 1px solid var(--admin-black);
+    border-bottom: none;
+    color: var(--admin-black);
+    margin-right: 6px;
+    background: #fff;
+}
+
+.nav-tabs .nav-link:hover {
+    background: var(--admin-soft);
 }
 
 .nav-tabs .nav-link.active {
-    background: #000;
-    color: #fff;
+    background: var(--admin-black) !important;
+    color: #fff !important;
 }
 
 /* ----------------------------- */
-/* Badges */
+/* Badges / alerts */
 /* ----------------------------- */
 
 .badge {
-    border-radius: 0;
-}
-
-/* ----------------------------- */
-/* Header */
-/* ----------------------------- */
-
-.admin-header-logo {
-    height: 44px;
-}
-
-.admin-header-title {
+    border: 1px solid transparent;
     font-weight: 600;
+    padding: 0.35em 0.55em;
+}
+
+.alert {
+    border: 1px solid var(--admin-black) !important;
+}
+
+.alert-danger {
+    background: #fff5f5;
+    color: #7a0916;
+}
+
+/* ----------------------------- */
+/* Tables */
+/* ----------------------------- */
+
+.table {
+    border: 1px solid var(--admin-black);
+    margin-bottom: 0;
+}
+
+.table th,
+.table td {
+    border: 1px solid var(--admin-black) !important;
+    vertical-align: middle;
+}
+
+.table thead th {
+    background: var(--admin-soft);
+    white-space: nowrap;
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) > * {
+    background-color: var(--admin-soft-2);
+}
+
+.table-hover > tbody > tr:hover > * {
+    background-color: #f1f1f1;
+}
+
+/* bootstrap-table toolbar spacing safety */
+.fixed-table-container {
+    border: none !important;
+}
+
+.fixed-table-body {
+    height: auto !important;
+}
+
+/* ----------------------------- */
+/* JSON box */
+/* ----------------------------- */
+
+.json-box {
+    background: #101010;
+    color: #9cff9c;
+    border: 1px solid var(--admin-black);
+    font-size: 12px;
+    padding: 12px;
+    max-height: 400px;
+    overflow: auto;
+    margin-bottom: 0;
 }
 
 /* ----------------------------- */
 /* Jackpot cards */
 /* ----------------------------- */
 
+.jackpot-card {
+    position: relative;
+    min-height: 100%;
+}
+
+.jackpot-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
 .jackpot-card-value {
     display: flex;
     align-items: center;
     gap: 8px;
+    min-height: 34px;
 }
 
 .jackpot-card-icon {
-    width: 26px;
-    height: 26px;
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    flex: 0 0 auto;
 }
 
 .jackpot-card-value span {
-    font-size: 20px;
-    font-weight: 600;
+    font-size: 1.35rem !important;
+    line-height: 1.15;
+    letter-spacing: 0.2px;
+}
+
+.jackpot-card-stats {
+    margin-top: 8px;
+    display: grid;
+    gap: 4px;
+    font-size: 12px;
+}
+
+.jackpot-stat {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    color: var(--admin-muted);
+}
+
+.jackpot-stat span:last-child {
+    color: var(--admin-text);
+    font-weight: 500;
 }
 
 /* ----------------------------- */
-/* Progress bars */
+/* Jackpot progress */
 /* ----------------------------- */
 
 .jackpot-progress {
     height: 3px;
-    background: #ddd;
-    margin: 6px 0;
+    background: #dddddd;
+    margin-top: 8px;
+    margin-bottom: 8px;
+    overflow: hidden;
 }
 
 .jackpot-progress-bar {
-    height: 3px;
+    height: 100%;
     width: 0%;
-    transition: width .4s ease;
+    transition: width 0.35s ease;
 }
 
 #rubyProgress {
-    background: #c1121f;
+    background: var(--ruby);
 }
 
 #goldProgress {
-    background: #d4af37;
+    background: var(--gold);
 }
 
 #jadeProgress {
-    background: #0a9a6b;
+    background: var(--jade);
+}
+
+.jackpot-hot-bar {
+    animation: jackpotPulse 0.9s infinite alternate;
+}
+
+@keyframes jackpotPulse {
+    from { opacity: 0.45; }
+    to { opacity: 1; }
 }
 
 /* ----------------------------- */
@@ -202,25 +380,27 @@ body {
 /* ----------------------------- */
 
 .ruby-glow {
-    box-shadow: 0 0 14px rgba(193,18,31,.5);
+    box-shadow: 0 0 0 1px var(--ruby), 0 0 14px rgba(193,18,31,.35) !important;
 }
 
 .gold-glow {
-    box-shadow: 0 0 14px rgba(212,175,55,.6);
+    box-shadow: 0 0 0 1px var(--gold), 0 0 14px rgba(199,154,0,.35) !important;
 }
 
 .jade-glow {
-    box-shadow: 0 0 14px rgba(10,154,107,.6);
+    box-shadow: 0 0 0 1px var(--jade), 0 0 14px rgba(10,154,107,.35) !important;
 }
 
 /* ----------------------------- */
-/* Mini tables */
+/* Mini table stage */
 /* ----------------------------- */
 
 #miniTableStage {
     display: flex;
     flex-wrap: wrap;
+    align-items: flex-end;
     gap: 12px;
+    justify-content: flex-start;
 }
 
 .mini-table {
@@ -231,7 +411,9 @@ body {
 
 .mini-table-label {
     font-size: 11px;
+    color: var(--admin-muted);
     margin-bottom: 4px;
+    line-height: 1;
 }
 
 .mini-table-grid {
@@ -244,24 +426,42 @@ body {
 .mini-box {
     width: 12px;
     height: 12px;
-    border-radius: 50%;
-    background: #ddd;
+    border: 1px solid #cfcfcf;
+    border-radius: 50% !important;
+    background: #ffffff;
 }
 
 .mini-box-online {
-    background: #aaa;
+    border-color: #7a7a7a;
 }
 
 .mini-box-recent {
-    background: #666;
+    background: #b7b7b7;
+    border-color: #7a7a7a;
 }
 
 .mini-box-active {
-    background: #0d6efd;
+    background: var(--blue);
+    border-color: #0a4fb3;
+}
+
+.mini-table-separator {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-self: center;
+    margin: 0 2px;
+}
+
+.mini-table-separator span {
+    width: 3px;
+    height: 3px;
+    background: #b7b7b7;
+    border-radius: 50% !important;
 }
 
 /* ----------------------------- */
-/* Device health */
+/* Status / health helpers */
 /* ----------------------------- */
 
 .devices-health-badge {
@@ -270,24 +470,116 @@ body {
 }
 
 /* ----------------------------- */
-/* JSON box */
+/* Modal */
 /* ----------------------------- */
 
-.json-box {
-    background: #111;
-    color: #0f0;
-    font-size: 12px;
-    padding: 12px;
-    border-radius: 0;
-    max-height: 400px;
-    overflow: auto;
+.modal-content {
+    border: 1px solid var(--admin-black);
+}
+
+.modal-header,
+.modal-footer {
+    border-color: var(--admin-black);
 }
 
 /* ----------------------------- */
-/* Mono numbers */
+/* Live events */
 /* ----------------------------- */
 
-.mono {
-    font-variant-numeric: tabular-nums;
+#liveEventsBody td {
+    font-size: 12px;
+}
+
+#liveEventsBody code {
+    font-size: 11px;
+    color: #222;
+    background: #f4f4f4;
+    padding: 1px 3px;
+    border: 1px solid #ddd;
+}
+
+/* ----------------------------- */
+/* Small polish */
+/* ----------------------------- */
+
+pre,
+code {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.table-responsive {
+    border: none;
+}
+
+/* ----------------------------- */
+/* Responsive */
+/* ----------------------------- */
+
+@media (max-width: 992px) {
+    .jackpot-card-value span {
+        font-size: 1.15rem !important;
+    }
+
+    #miniTableStage {
+        gap: 10px;
+    }
+}
+
+@media (max-width: 768px) {
+    body {
+        font-size: 13px;
+    }
+
+    .card-body {
+        padding: 12px;
+    }
+
+    .jackpot-card-stats {
+        font-size: 11px;
+    }
+}
+
+/* ----------------------------- */
+/* Tabs unified border */
+/* ----------------------------- */
+
+.nav-tabs {
+    border: 1px solid #000;
+    border-bottom: none;
+}
+
+.nav-tabs .nav-item {
+    margin: 0;
+}
+
+.nav-tabs .nav-link {
+    border: none;
+    border-right: 1px solid #000;
+    margin: 0;
+    background: #fff;
+    color: #000;
+    padding: 8px 14px;
+}
+
+.nav-tabs .nav-link:last-child {
+    border-right: none;
+}
+
+/* hover */
+
+.nav-tabs .nav-link:hover {
+    background: #f3f3f3;
+    color: #000;
+}
+
+/* active */
+
+.nav-tabs .nav-link.active {
+    background: #000;
+    color: #fff;
+}
+
+.nav-tabs .nav-link {
+    font-size: 13px;
+    letter-spacing: 0.2px;
 }
