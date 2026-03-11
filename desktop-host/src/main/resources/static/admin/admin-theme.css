@@ -1,0 +1,293 @@
+/* ----------------------------- */
+/* Poppins font */
+/* ----------------------------- */
+
+@font-face {
+    font-family: "Poppins";
+    src: url("/admin/ui/fonts/Poppins-Regular.ttf") format("truetype");
+    font-weight: 400;
+}
+
+@font-face {
+    font-family: "Poppins";
+    src: url("/admin/ui/fonts/Poppins-Medium.ttf") format("truetype");
+    font-weight: 500;
+}
+
+@font-face {
+    font-family: "Poppins";
+    src: url("/admin/ui/fonts/Poppins-SemiBold.ttf") format("truetype");
+    font-weight: 600;
+}
+
+body {
+    font-family: "Poppins", sans-serif;
+    background: #ffffff;
+}
+
+/* ----------------------------- */
+/* Remove bootstrap round corners */
+/* ----------------------------- */
+
+* {
+    border-radius: 0 !important;
+}
+
+/* ----------------------------- */
+/* Cards */
+/* ----------------------------- */
+
+.card {
+    border: 1px solid #000;
+    box-shadow: none;
+}
+
+.card-header {
+    border-bottom: 1px solid #000;
+    font-weight: 600;
+    background: #fff;
+}
+
+/* ----------------------------- */
+/* Tables */
+/* ----------------------------- */
+
+.table {
+    border: 1px solid #000;
+}
+
+.table th,
+.table td {
+    border: 1px solid #000 !important;
+}
+
+.table thead th {
+    background: #f7f7f7;
+    font-weight: 600;
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) {
+    background: #fafafa;
+}
+
+/* ----------------------------- */
+/* Buttons */
+/* ----------------------------- */
+
+.btn {
+    border-radius: 0;
+    border: 1px solid #000;
+    box-shadow: none;
+}
+
+.btn-primary {
+    background: #000;
+    border-color: #000;
+}
+
+.btn-primary:hover {
+    background: #222;
+    border-color: #000;
+}
+
+.btn-outline-primary {
+    border-color: #000;
+    color: #000;
+}
+
+.btn-outline-primary:hover {
+    background: #000;
+    color: #fff;
+}
+
+/* ----------------------------- */
+/* Inputs */
+/* ----------------------------- */
+
+.form-control,
+.form-select {
+    border-radius: 0;
+    border: 1px solid #000;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #000;
+    box-shadow: none;
+}
+
+/* ----------------------------- */
+/* Tabs */
+/* ----------------------------- */
+
+.nav-tabs .nav-link {
+    border: 1px solid #000;
+}
+
+.nav-tabs .nav-link.active {
+    background: #000;
+    color: #fff;
+}
+
+/* ----------------------------- */
+/* Badges */
+/* ----------------------------- */
+
+.badge {
+    border-radius: 0;
+}
+
+/* ----------------------------- */
+/* Header */
+/* ----------------------------- */
+
+.admin-header-logo {
+    height: 44px;
+}
+
+.admin-header-title {
+    font-weight: 600;
+}
+
+/* ----------------------------- */
+/* Jackpot cards */
+/* ----------------------------- */
+
+.jackpot-card-value {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.jackpot-card-icon {
+    width: 26px;
+    height: 26px;
+}
+
+.jackpot-card-value span {
+    font-size: 20px;
+    font-weight: 600;
+}
+
+/* ----------------------------- */
+/* Progress bars */
+/* ----------------------------- */
+
+.jackpot-progress {
+    height: 3px;
+    background: #ddd;
+    margin: 6px 0;
+}
+
+.jackpot-progress-bar {
+    height: 3px;
+    width: 0%;
+    transition: width .4s ease;
+}
+
+#rubyProgress {
+    background: #c1121f;
+}
+
+#goldProgress {
+    background: #d4af37;
+}
+
+#jadeProgress {
+    background: #0a9a6b;
+}
+
+/* ----------------------------- */
+/* Jackpot glow */
+/* ----------------------------- */
+
+.ruby-glow {
+    box-shadow: 0 0 14px rgba(193,18,31,.5);
+}
+
+.gold-glow {
+    box-shadow: 0 0 14px rgba(212,175,55,.6);
+}
+
+.jade-glow {
+    box-shadow: 0 0 14px rgba(10,154,107,.6);
+}
+
+/* ----------------------------- */
+/* Mini tables */
+/* ----------------------------- */
+
+#miniTableStage {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.mini-table {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.mini-table-label {
+    font-size: 11px;
+    margin-bottom: 4px;
+}
+
+.mini-table-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 12px);
+    grid-template-rows: repeat(3, 12px);
+    gap: 3px;
+}
+
+.mini-box {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #ddd;
+}
+
+.mini-box-online {
+    background: #aaa;
+}
+
+.mini-box-recent {
+    background: #666;
+}
+
+.mini-box-active {
+    background: #0d6efd;
+}
+
+/* ----------------------------- */
+/* Device health */
+/* ----------------------------- */
+
+.devices-health-badge {
+    font-size: 12px;
+    padding: 4px 8px;
+}
+
+/* ----------------------------- */
+/* JSON box */
+/* ----------------------------- */
+
+.json-box {
+    background: #111;
+    color: #0f0;
+    font-size: 12px;
+    padding: 12px;
+    border-radius: 0;
+    max-height: 400px;
+    overflow: auto;
+}
+
+/* ----------------------------- */
+/* Mono numbers */
+/* ----------------------------- */
+
+.mono {
+    font-variant-numeric: tabular-nums;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
