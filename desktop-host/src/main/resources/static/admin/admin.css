@@ -148,10 +148,6 @@ body {
     font-weight: 600;
 }
 
-/* --------------------------------------------------- */
-/* MINI TABLE STAGE */
-/* --------------------------------------------------- */
-
 #miniTableStage {
     display: flex;
     align-items: center;
@@ -205,6 +201,7 @@ body {
 
 .mini-box.mini-box-winner {
     animation: miniWinnerPulse 1s infinite alternate;
+    z-index: 2;
 }
 
 .mini-box.mini-box-winner-ruby {
