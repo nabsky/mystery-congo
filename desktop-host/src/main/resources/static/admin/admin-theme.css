@@ -394,26 +394,31 @@ th {
 /* ----------------------------- */
 /* Mini table stage */
 /* ----------------------------- */
-
 #miniTableStage {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
+    justify-content: center;
     gap: 12px;
-    justify-content: flex-start;
 }
 
 .mini-table {
     display: flex;
     flex-direction: column;
     align-items: center;
+    width: 42px;
 }
 
 .mini-table-label {
+    width: 100%;
+    text-align: center;
     font-size: 11px;
-    color: var(--admin-muted);
+    color: #444;
     margin-bottom: 4px;
     line-height: 1;
+    padding: 3px 0;
+    border: 1px solid transparent;
+    box-sizing: border-box;
 }
 
 .mini-table-grid {
@@ -426,23 +431,65 @@ th {
 .mini-box {
     width: 12px;
     height: 12px;
-    border: 1px solid #cfcfcf;
-    border-radius: 50% !important;
+    border-radius: 50%;
     background: #ffffff;
+    border: 1px solid #9a9a9a;
+    box-sizing: border-box;
 }
 
 .mini-box-online {
-    border-color: #7a7a7a;
+    border-color: #6f6f6f;
 }
 
 .mini-box-recent {
-    background: #b7b7b7;
-    border-color: #7a7a7a;
+    background: #ffd84d;
+    border-color: #c8a200;
 }
 
 .mini-box-active {
-    background: var(--blue);
-    border-color: #0a4fb3;
+    background: #1e6fe3;
+    border-color: #0f4fb3;
+}
+
+.mini-box-winner {
+    animation: miniWinnerPulse 1s infinite alternate;
+    z-index: 2;
+}
+
+.mini-box-winner-ruby {
+    background: #e12626 !important;
+    border: 1px solid #990d0d !important;
+}
+
+.mini-box-winner-gold {
+    background: #d6a500 !important;
+    border: 1px solid #8a6b00 !important;
+}
+
+.mini-box-winner-jade {
+    background: #16a572 !important;
+    border: 1px solid #0c6a49 !important;
+}
+
+.mini-table-pending-ruby .mini-table-label {
+    background: #e12626;
+    color: #fff;
+    border-color: #990d0d;
+    font-weight: 600;
+}
+
+.mini-table-pending-gold .mini-table-label {
+    background: #d6a500;
+    color: #111;
+    border-color: #8a6b00;
+    font-weight: 600;
+}
+
+.mini-table-pending-jade .mini-table-label {
+    background: #16a572;
+    color: #fff;
+    border-color: #0c6a49;
+    font-weight: 600;
 }
 
 .mini-table-separator {
@@ -458,6 +505,110 @@ th {
     height: 3px;
     background: #b7b7b7;
     border-radius: 50% !important;
+}
+
+@keyframes miniWinnerPulse {
+    from { transform: scale(1); }
+    to { transform: scale(1.15); }
+}
+/* --------------------------------------------------- */
+/* TABLES OVERVIEW LAYOUT */
+/* --------------------------------------------------- */
+
+.tables-overview-layout {
+    display: grid;
+    grid-template-columns: 1fr auto 220px;
+    align-items: start;
+}
+
+.mini-table-stage {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.tables-legend {
+    border-left: 1px solid #000;
+    padding-left: 16px;
+}
+
+.tables-legend-title {
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.tables-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    color: #333;
+}
+
+.legend-box {
+    flex: 0 0 auto;
+}
+
+/* --------------------------------------------------- */
+/* PENDING WIN TABLE HIGHLIGHT */
+/* --------------------------------------------------- */
+.mini-table-label {
+    border-radius: 2px;
+}
+
+.mini-table-pending-ruby .mini-table-label {
+    background: #e12626;
+    color: #fff;
+    border-color: none;
+    font-weight: 600;
+}
+
+.mini-table-pending-gold .mini-table-label {
+    background: #d6a500;
+    color: #111;
+    border-color: none;
+    font-weight: 600;
+}
+
+.mini-table-pending-jade .mini-table-label {
+    background: #16a572;
+    color: #fff;
+    border-color: none;
+    font-weight: 600;
+}
+
+@media (max-width: 992px) {
+    .tables-overview-layout {
+        flex-direction: column;
+    }
+
+    .tables-legend {
+        border-left: none;
+        border-top: 1px solid #000;
+        padding-left: 0;
+        padding-top: 12px;
+        min-width: 0;
+        width: 100%;
+    }
+}
+
+/* --------------------------------------------------- */
+/* TABLE SEPARATOR */
+/* --------------------------------------------------- */
+
+.mini-table-separator {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.mini-table-separator span {
+    width: 3px;
+    height: 3px;
+    background: #bbb;
+    border-radius: 50%;
 }
 
 /* ----------------------------- */
