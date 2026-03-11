@@ -306,6 +306,11 @@ function renderMiniTableStage(snapshot) {
     const tables = snapshot.tables || [];
     root.innerHTML = "";
 
+    const pending = snapshot.pendingWin;
+    const winnerTableId = pending?.tableId ?? null;
+    const winnerBoxId = pending?.boxId ?? null;
+    const winnerJackpotId = pending?.jackpotId ?? null;
+
     tables.forEach((table, index) => {
         const tableEl = document.createElement("div");
         tableEl.className = "mini-table";
@@ -323,9 +328,25 @@ function renderMiniTableStage(snapshot) {
             const boxEl = document.createElement("div");
             boxEl.className = "mini-box";
 
-            if (table.isActive) boxEl.classList.add("mini-box-online");
-            if ((table.recentBoxes || []).includes(boxId)) boxEl.classList.add("mini-box-recent");
-            if ((table.activeBoxes || []).includes(boxId)) boxEl.classList.add("mini-box-active");
+            if (table.isActive) {
+                boxEl.classList.add("mini-box-online");
+            }
+
+            const isWinner =
+                winnerTableId === table.tableId &&
+                winnerBoxId === boxId;
+
+            if (isWinner) {
+                boxEl.classList.add("mini-box-winner");
+
+                if (winnerJackpotId === "RUBY") boxEl.classList.add("mini-box-winner-ruby");
+                if (winnerJackpotId === "GOLD") boxEl.classList.add("mini-box-winner-gold");
+                if (winnerJackpotId === "JADE") boxEl.classList.add("mini-box-winner-jade");
+            } else if ((table.activeBoxes || []).includes(boxId)) {
+                boxEl.classList.add("mini-box-active");
+            } else if ((table.recentBoxes || []).includes(boxId)) {
+                boxEl.classList.add("mini-box-recent");
+            }
 
             gridEl.appendChild(boxEl);
         });
