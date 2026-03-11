@@ -341,10 +341,6 @@ function renderMiniTableStage(snapshot) {
             const boxEl = document.createElement("div");
             boxEl.className = "mini-box";
 
-            if (table.isActive) {
-                boxEl.classList.add("mini-box-online");
-            }
-
             const isWinner =
                 winnerTableId === table.tableId &&
                 winnerBoxId === boxId;
@@ -355,6 +351,8 @@ function renderMiniTableStage(snapshot) {
                 if (winnerJackpotId === "RUBY") boxEl.classList.add("mini-box-winner-ruby");
                 if (winnerJackpotId === "GOLD") boxEl.classList.add("mini-box-winner-gold");
                 if (winnerJackpotId === "JADE") boxEl.classList.add("mini-box-winner-jade");
+            } else if (!table.isActive) {
+                boxEl.classList.add("mini-box-offline");
             } else if ((table.activeBoxes || []).includes(boxId)) {
                 boxEl.classList.add("mini-box-active");
             } else if ((table.recentBoxes || []).includes(boxId)) {
