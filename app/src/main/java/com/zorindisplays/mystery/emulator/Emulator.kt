@@ -171,8 +171,9 @@ class Emulator(
         scope.launch {
             delay(10_000L)
             if (paused) {
+                delay(8_000L)
                 _events.emit(JackpotEvent.DealerPayoutBoxSelected(tableId = table, boxId = box))
-                delay(1_000L)
+                delay(2_000L)
                 if (paused) {
                     _events.emit(JackpotEvent.DealerPayoutConfirmed(tableId = table, boxId = box))
                 }
